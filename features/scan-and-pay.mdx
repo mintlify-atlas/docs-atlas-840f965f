@@ -1,0 +1,185 @@
+---
+title: "Scan & Pay"
+description: "How to scan a merchant QR code and complete a payment"
+---
+
+Scan & Pay lets you pay a merchant by scanning their QR code. The flow moves through several screens: scan, review merchant, enter amount, confirm with PIN, and success.
+
+## Standard payment flow
+
+<Steps>
+  <Step title="Open the scanner">
+    Tap the **Scan & Pay** card on the dashboard. The app requests camera permission (Android) and opens the `SCAN` screen with a live camera feed.
+
+    The screen shows a QR overlay frame and a status indicator at the bottom that reads **Scanning...** while the camera is active.
+  </Step>
+
+  <Step title="Scan the QR code">
+    Point the camera at any DOSS QR code. Once the camera reads a code, the app immediately calls:
+
+    ```http
+    POST /v2/scan-link
+    ```
+
+    ```json
+    {
+      "link": "<scanned QR value>"
+    }
+    ```
+
+    The response determines which screen to navigate to next.
+  </Step>
+
+  <Step title="Review the merchant or user profile">
+    The API response is interpreted in one of three ways:
+
+    <Tabs>
+      <Tab title="Merchant (string link)">
+        When `is_string` is `true`, the response contains merchant details. The app navigates to the `PAY` screen directly, passing:
+
+        - `link_type: 'string'`
+        - `merchant` — business name and address
+        - `cashier` — first and last name
+        - `merchantId` and `cashier_id`
+        - `logo` — merchant logo URL
+        - `merchantDefaultCurrencyCode`
+      </Tab>
+      <Tab title="User profile">
+        When `is_string` is `false` and `user_id` is present, the app navigates to the `SCANNER_PROFILE` screen, displaying the scanned user's:
+
+        - Profile photo
+        - Full name
+        - User ID (UUID)
+        - Verified badge
+
+        This flow is used for identity verification, not payment.
+      </Tab>
+      <Tab title="Payment link (URL)">
+        When `is_string` is `false` and no `user_id` is present, the response contains a pre-defined payment link. The app navigates to the `PAY` screen, passing:
+
+        - `link_type: 'url'`
+        - `payment_id`
+        - `name` — payer's name
+        - `logo`
+        - `note`
+        - `amount` — pre-set amount from the link
+      </Tab>
+    </Tabs>
+
+    If scanning fails, an error modal appears with options to **Scan Again** or **Cancel**.
+  </Step>
+
+  <Step title="Enter or review the amount">
+    The `PAY` screen shows the merchant logo, business name, address, and cashier name.
+
+    <Tabs>
+      <Tab title="String link (manual amount)">
+        Enter the amount you want to pay. The input automatically formats as you type (cents to dollars conversion). Your current balance is displayed below the input.
+
+        If the entered amount exceeds your balance, an **Insufficient Balance** toast appears and the amount is capped.
+
+        You can optionally tap **Write A Note** to attach a note to the transaction.
+      </Tab>
+      <Tab title="URL link (fixed amount)">
+        The amount is pre-set by the payment link and displayed read-only. The button label changes to **Redeem** instead of **Pay**.
+      </Tab>
+    </Tabs>
+
+    <Warning>
+      The Android hardware back button is disabled on the Pay screen. Use the on-screen back arrow, which returns you to the `SCAN` screen.
+    </Warning>
+  </Step>
+
+  <Step title="Review and confirm">
+    Tapping **Pay** or **Redeem** navigates to the `CONFIRM_PURCHASE` screen. Here you enter your 4-digit PIN to authorize the payment.
+
+    The PIN is entered using the app's OTP input component.
+  </Step>
+
+  <Step title="Submit payment">
+    Tapping **Confirm Payment** calls:
+
+    ```http
+    POST /v2/confirm_payment_with_pin
+    ```
+
+    ```json
+    {
+      "confirm_pin": "1234",
+      "link_type": "string",
+      "merchantId": 234,
+      "cashier_id": 23,
+      "amount": "25.00",
+      "note": "lunch",
+      "logo": "https://...",
+      "merchantDefaultCurrencyCode": "usd"
+    }
+    ```
+
+    <Note>
+      For `string` link types, the `merchant` and `cashier` objects are removed from the payload before submission. For `url` link types, the `payment_id` is included instead.
+    </Note>
+
+    On success, the dashboard and transaction history queries are invalidated so balances and history reflect the new payment immediately.
+  </Step>
+
+  <Step title="Payment successful">
+    The `PAYMENT_SUCCESSFUL` screen is shown with the transaction timestamp. Tap **Continue** to return to the main tab navigator.
+  </Step>
+</Steps>
+
+## Payment requests flow
+
+When a merchant initiates a payment request (for example, a cashier-initiated payment), you receive a notification or see the transaction listed as **Awaiting** in your dashboard or transaction history.
+
+<Steps>
+  <Step title="Open the payment request">
+    Tap the **Awaiting** transaction from the dashboard or transaction history. The `PAYMENT_REQUESTED` screen opens (blue background) showing:
+
+    - Your current balance (with show/hide toggle)
+    - Merchant logo
+    - Request date and time
+    - Amount requested
+    - Store name
+    - Cashier name
+  </Step>
+
+  <Step title="Approve or reject">
+    Two buttons are shown:
+
+    - **Pay $X.XX** (green) — proceed to approval
+    - **Reject** (red) — proceed to rejection
+
+    Both options navigate to the `PAY_ENTER_PIN` screen, passing the action type (`approve` or `reject`) along with the transaction details.
+  </Step>
+
+  <Step title="Enter PIN">
+    On the `PAY_ENTER_PIN` screen, enter your 4-digit PIN and tap **Confirm Payment**. This calls:
+
+    ```http
+    POST /v2/payment-request-action
+    ```
+
+    ```json
+    {
+      "confirm_pin": "1234",
+      "txn_id": "<transaction UUID>",
+      "type": "approve"
+    }
+    ```
+  </Step>
+
+  <Step title="Result screen">
+    - **Approved** → `REQ_PAYMENT_SUCCESS` screen (green background) — shows the transaction ID (copyable to clipboard), amount, and time.
+    - **Rejected** → `REQ_PAYMENT_FAIL` screen (orange background) — shows the failure message, amount, and time.
+
+    Tapping **Close** on either screen invalidates the dashboard and transaction history queries and returns you to the home screen.
+  </Step>
+</Steps>
+
+## Scan error handling
+
+If the QR code cannot be read or the `/v2/scan-link` call fails, a modal appears with the server error message (or a generic fallback). You can choose to:
+
+- **Scan Again** — re-enables the camera and resets the scanning state
+- **Cancel** — dismisses the modal and returns to the previous screen

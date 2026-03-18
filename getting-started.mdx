@@ -1,0 +1,99 @@
+---
+title: "Getting started"
+description: "Set up and run the DOSS app locally for development"
+---
+
+## Prerequisites
+
+<Note>
+  Complete the [React Native environment setup](https://reactnative.dev/docs/environment-setup) before proceeding. The guide covers installing the Android SDK, configuring `ANDROID_HOME`, and setting up Xcode Command Line Tools.
+</Note>
+
+You need the following before running the project:
+
+- **Node.js** >= 18
+- **Yarn** package manager
+- **Android Studio** (for Android development)
+- **Xcode** (for iOS development, macOS only)
+
+## Setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/smonderoy/doss-userapp.git
+    cd doss-userapp
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    yarn install
+    ```
+  </Step>
+
+  <Step title="Install iOS pods (macOS only)">
+    ```bash
+    cd ios && pod install
+    ```
+
+    Skip this step if you are only targeting Android.
+  </Step>
+
+  <Step title="Start the Metro bundler">
+    ```bash
+    yarn start
+    ```
+
+    Metro starts with the experimental debugger enabled. Keep this terminal open while running the app.
+  </Step>
+
+  <Step title="Run the app">
+    Open a second terminal and launch the app on your target platform.
+
+    <CodeGroup>
+
+    ```bash Android
+    yarn android
+    ```
+
+    ```bash iOS
+    yarn ios
+    ```
+
+    </CodeGroup>
+
+    The app builds and opens in your connected device or emulator/simulator.
+  </Step>
+</Steps>
+
+## Release build (Android)
+
+To produce a release APK, run the `release-build` script. It bundles the JavaScript, clears stale drawable resources, and runs the Gradle `assembleRelease` task.
+
+```bash
+react-native bundle --platform android --dev false --entry-file index.js \
+  --bundle-output android/app/src/main/assets/index.android.bundle \
+  --assets-dest android/app/build/intermediates/res/merged/release/ \
+  && rm -rf android/app/src/main/res/drawable-* \
+  && rm -rf android/app/src/main/res/raw/* \
+  && cd android && ./gradlew assembleRelease && cd ..
+```
+
+<Tip>
+  The `release-build` script in `package.json` runs this full command in one step: `yarn release-build`.
+</Tip>
+
+## First launch
+
+When the app opens for the first time it follows this sequence:
+
+1. **Splash screen** — displays the DOSS logo and a **Get Started** button. `AsyncStorage` checks whether the app has been launched before.
+2. **Onboarding** — four slides introducing identity verification, support payments, scan-and-pay, and document requirements. Navigating past the last slide resets the stack to the main flow.
+3. **Auth flow** — new users register with email OTP, phone OTP, and a PIN. Returning users log in with their email and PIN.
+
+On subsequent launches, the Splash screen routes directly to the home dashboard, bypassing Onboarding.
+
+<Note>
+  The app checks for a stored authentication token on startup. If a valid token exists, the authenticated stack loads immediately after the Splash screen, skipping the auth flow entirely.
+</Note>

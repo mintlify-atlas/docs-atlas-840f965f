@@ -1,0 +1,67 @@
+---
+title: "Transaction History"
+description: "View and search all past transactions"
+---
+
+Transaction History gives you a paginated, searchable log of every transaction on your account. It is accessible from the dashboard **View All** link or directly from the bottom navigation tab.
+
+## Fetching transactions
+
+Transactions are loaded from:
+
+```http
+GET /v2/transaction_history
+```
+
+Search is performed server-side by appending a query parameter:
+
+```http
+GET /v2/transaction_history?search=<term>
+```
+
+The screen uses infinite scroll pagination. When you reach the bottom of the list, the next page is fetched automatically. A loading indicator appears at the bottom while the next page is being fetched.
+
+## Searching transactions
+
+A search field appears at the top of the screen. As you type, requests are debounced (300 ms) to avoid excessive API calls. Tapping the clear button resets the search term and re-fetches the default list.
+
+**When a search term is active**, individual transaction items are rendered in a flat list (no date grouping).
+
+**When the search field is empty**, transactions are grouped by date (see below).
+
+## Date grouping
+
+When no search is active, transactions are grouped by date using the `formatTransactionDate` helper. Each group shows a date label above its transaction items.
+
+<Note>
+  Transactions with a `null` cart are automatically excluded from all views.
+</Note>
+
+## Transaction item
+
+Each transaction row displays:
+
+- Merchant name (or end-user name for peer transfers)
+- Transaction amount
+- Status badge
+- Timestamp
+
+## Transaction statuses
+
+| Status | Behavior on tap |
+|---|---|
+| `Awaiting` | Navigates to `PAYMENT_REQUESTED` screen — the transaction is pending your approval |
+| `Successful` | Opens the `TransactionModal` overlay with full details |
+| Other statuses | Opens the `TransactionModal` overlay with full details |
+
+### Transaction modal
+
+Tapping a completed transaction opens a bottom-sheet modal with the full transaction details. Dismiss it by tapping outside or using the close action.
+
+## Pull-to-refresh
+
+Pull down anywhere in the list to reload the current view. The spinner uses the app's primary color.
+
+## Empty state
+
+If no transactions match the current search term or if the account has no history, an empty state illustration is displayed centered on the screen.

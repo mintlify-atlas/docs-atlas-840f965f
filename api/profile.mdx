@@ -1,0 +1,179 @@
+---
+title: "Profile"
+description: "Retrieve and update the authenticated user's profile information"
+---
+
+<Note>
+  All profile endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## Get profile
+
+`GET /v2/profile`
+
+Returns the authenticated user's profile. This endpoint is used on the home screen, the profile screen, and the documents screen to populate user data and identity verification status.
+
+### Response
+
+<ResponseField name="id" type="integer">
+  The user's numeric database ID.
+</ResponseField>
+
+<ResponseField name="first_name" type="string">
+  The user's first name.
+</ResponseField>
+
+<ResponseField name="last_name" type="string">
+  The user's last name.
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  The user's email address.
+</ResponseField>
+
+<ResponseField name="phone" type="string">
+  The user's phone number.
+</ResponseField>
+
+<ResponseField name="image" type="string">
+  Absolute URL of the user's profile photo.
+</ResponseField>
+
+<ResponseField name="uuid" type="string">
+  The user's unique identifier. Used to generate the identity QR code.
+</ResponseField>
+
+<ResponseField name="id_proof_front" type="string">
+  URL of the front image of the uploaded national ID, if present.
+</ResponseField>
+
+<ResponseField name="id_proof_back" type="string">
+  URL of the back image of the uploaded national ID, if present.
+</ResponseField>
+
+<ResponseField name="passport_img_front" type="string">
+  URL of the front image of the uploaded passport, if present.
+</ResponseField>
+
+<ResponseField name="passport_img_back" type="string">
+  URL of the back image of the uploaded passport, if present.
+</ResponseField>
+
+<ResponseField name="driving_license_front" type="string">
+  URL of the front image of the uploaded driving licence, if present.
+</ResponseField>
+
+<ResponseField name="driving_license_back" type="string">
+  URL of the back image of the uploaded driving licence, if present.
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/profile \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Update name
+
+`PUT /v2/update_name`
+
+Updates the authenticated user's first and last name. Invalidates the cached profile on success.
+
+### Request body
+
+<ParamField body="first_name" type="string" required>
+  The user's new first name.
+</ParamField>
+
+<ParamField body="last_name" type="string" required>
+  The user's new last name.
+</ParamField>
+
+```bash
+curl -X PUT https://dossapp.com/api/v2/update_name \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"first_name": "Jane", "last_name": "Doe"}'
+```
+
+---
+
+## Update email
+
+`PUT /v2/update_email`
+
+Updates the authenticated user's email address. The current email must be provided for verification.
+
+### Request body
+
+<ParamField body="last_email" type="string" required>
+  The user's current (old) email address.
+</ParamField>
+
+<ParamField body="new_email" type="string" required>
+  The new email address to set.
+</ParamField>
+
+```bash
+curl -X PUT https://dossapp.com/api/v2/update_email \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"last_email": "old@example.com", "new_email": "new@example.com"}'
+```
+
+---
+
+## Update phone
+
+`PUT /v2/update_phone`
+
+Updates the authenticated user's phone number. The current phone number must be provided for verification.
+
+### Request body
+
+<ParamField body="old_phone" type="string" required>
+  The user's current phone number, including the country dial code.
+</ParamField>
+
+<ParamField body="new_phone" type="string" required>
+  The new phone number to set, including the country dial code.
+</ParamField>
+
+```bash
+curl -X PUT https://dossapp.com/api/v2/update_phone \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"old_phone": "+18681234567", "new_phone": "+18687654321"}'
+```
+
+---
+
+## Update profile photo
+
+`POST /v2/update_image`
+
+Uploads a new profile photo for the authenticated user. The request must be sent as `multipart/form-data`.
+
+<Note>
+  The image file is sent under the field name `image`. The client supports both selecting from the photo library and capturing from the camera.
+</Note>
+
+### Request body
+
+<ParamField body="image" type="file" required>
+  The image file to upload. Sent as a `multipart/form-data` part with the fields `uri`, `type`, and `name`.
+</ParamField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/update_image \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -F "image=@/path/to/photo.jpg"
+```

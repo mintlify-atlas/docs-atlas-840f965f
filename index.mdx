@@ -1,97 +1,61 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "DOSS User App"
+description: "The mobile payment app that lets you scan, pay, and manage your digital wallet — securely and instantly."
 ---
 
-## Setting up
-
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Get Started" icon="rocket" href="/getting-started">
+    Set up the DOSS app on iOS or Android in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Scan & Pay" icon="qrcode" href="/features/scan-and-pay">
+    Learn how to scan QR codes and complete payments.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the full backend API powering DOSS.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Authentication" icon="lock" href="/authentication/overview">
+    Understand registration, login, and PIN security.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What is DOSS?
 
-Everything you need to create world-class documentation.
+DOSS is a React Native mobile payment application that enables users to make fast, secure payments by scanning merchant QR codes. It combines digital wallet management, identity verification, and real-time transaction tracking into a single, streamlined mobile experience.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="QR Payments" icon="qrcode">
+    Scan any merchant QR code and pay instantly with PIN confirmation.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Digital Wallet" icon="wallet">
+    View your balance, track spending, and manage multiple wallets.
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Transaction History" icon="clock-rotate-left">
+    Browse all past transactions grouped by date with detailed receipts.
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Identity Verification" icon="id-card">
+    Verify your identity with government-issued documents for full account access.
   </Card>
-</Columns>
+  <Card title="Push Notifications" icon="bell">
+    Receive real-time alerts for payments, requests, and government notices.
+  </Card>
+  <Card title="Group Payments" icon="people-group">
+    Join payment groups and settle shared expenses with a single PIN.
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Quick Navigation
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Registration Flow" icon="user-plus" href="/authentication/registration">
+    Email OTP → Phone OTP → Create PIN → Account ready
+  </Card>
+  <Card title="Dashboard" icon="house" href="/features/dashboard">
+    Balance overview, quick actions, and recent transactions.
+  </Card>
+  <Card title="Profile & Settings" icon="gear" href="/profile/overview">
+    Update your info, reset your PIN, and manage preferences.
+  </Card>
+  <Card title="Technical Architecture" icon="sitemap" href="/technical/architecture">
+    App structure, navigation, and state management deep-dive.
+  </Card>
+</CardGroup>

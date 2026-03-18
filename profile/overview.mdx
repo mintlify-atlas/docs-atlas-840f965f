@@ -1,0 +1,85 @@
+---
+title: "Profile overview"
+description: "Manage your account, settings, and personal information"
+---
+
+The Profile screen is the central hub for managing your DOSS account. From here you can update your personal details, manage security settings, access customer support, and sign out.
+
+## Accessing the profile screen
+
+Tap the **Profile** tab in the bottom navigation bar from any screen in the authenticated app. The route name is `PROFILE`.
+
+## What the screen shows
+
+When the profile screen loads, it fetches your account data from:
+
+```http
+GET /v2/profile
+```
+
+The following information is displayed at the top of the screen:
+
+- **Profile photo** — your current avatar (88 × 88 dp, circular). Tap it to change the photo.
+- **Full name** — your first name and last name, capitalised.
+- **User ID** — your unique UUID shown below your name.
+
+### Document verification status
+
+The **Account Security** row includes a progress bar that reflects how many of your three identity document types have been uploaded (ID proof, passport, driving licence).
+
+| Documents uploaded | Status label | Bar colour |
+|---|---|---|
+| 1 of 3 | Poor | Red |
+| 2 of 3 | Good | Yellow |
+| 3 of 3 | Excellent | Green |
+
+## Updating your profile photo
+
+Tapping your avatar opens a modal with two options:
+
+- **Photo Library** — select an image from your device gallery.
+- **Camera** — take a new photo using the device camera.
+
+The selected image is uploaded as `multipart/form-data`:
+
+```http
+POST /v2/update_image
+```
+
+A loading indicator replaces the avatar while the upload is in progress. The profile is automatically re-fetched on success.
+
+<Note>
+  Camera and photo library access require the relevant device permissions. The app requests these permissions at the point of use.
+</Note>
+
+## Profile sections
+
+<CardGroup cols={2}>
+  <Card title="Preferences" icon="sliders" href="/profile/preferences">
+    Update your name, email address, phone number, or manage group memberships.
+  </Card>
+  <Card title="Account Security" icon="shield" href="/profile/account-security">
+    Upload identity documents and track your verification status.
+  </Card>
+  <Card title="Customer Support" icon="headset" href="/profile/customer-support">
+    Message the DOSS support team directly from the app.
+  </Card>
+  <Card title="Reset PIN" icon="rotate" href="/authentication/pin-management#resetting-a-pin">
+    Change your 4-digit security PIN.
+  </Card>
+</CardGroup>
+
+## Signing out
+
+Tap **Logout** at the bottom of the profile list. A confirmation dialog appears before you are signed out.
+
+On confirmation, the app:
+
+1. Clears the React Query cache.
+2. Removes the stored authentication token from local storage.
+3. Sets `loggedIn: false` in `useAuthStore`.
+4. Resets the navigation stack to `MAIN_STACK` (the unauthenticated entry point).
+
+<Warning>
+  Signing out clears all locally cached data. You will need to enter your phone number and PIN again on your next login.
+</Warning>

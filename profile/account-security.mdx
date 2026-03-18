@@ -1,0 +1,168 @@
+---
+title: "Account security"
+description: "Manage your identity documents and security settings"
+---
+
+The Account Security section gives you access to identity document management and PIN reset. A progress bar on the Profile screen reflects your overall verification status.
+
+Navigate here from **Profile → Account Security** (`DOCUMENTS` route).
+
+## Identity documents
+
+**Route:** `DOCUMENTS`
+
+DOSS requires identity documents to verify your account. You can upload a front and back image for each of the three supported document types.
+
+<CardGroup cols={3}>
+  <Card title="ID proof" icon="id-card">
+    Government-issued identity card.
+
+    ```http
+    POST /v2/id_proof
+    ```
+  </Card>
+  <Card title="Passport" icon="passport">
+    Passport biographical data page.
+
+    ```http
+    POST /v2/passport_image
+    ```
+  </Card>
+  <Card title="Driving licence" icon="car">
+    Front and back of your driving licence.
+
+    ```http
+    POST /v2/driving_license_image
+    ```
+  </Card>
+</CardGroup>
+
+### Uploading a document
+
+<Steps>
+  <Step title="Select document type">
+    Tap one of the three document cards — **Upload ID proof**, **Passport**, or **Driving Licence**. The selected card is highlighted.
+  </Step>
+  <Step title="Choose the front image">
+    Tap the **Front** tile. A modal appears with three options:
+
+    - **Photo Library** — pick an image from your device gallery.
+    - **Files** — browse and select a file from device storage.
+    - **Camera** — capture a photo using your camera.
+
+    The selected image appears as a thumbnail.
+  </Step>
+  <Step title="Choose the back image">
+    Tap the **Back** tile and repeat the same process.
+  </Step>
+  <Step title="Upload">
+    Tap **Upload**. The front and back images are sent together as `multipart/form-data` to the endpoint for the selected document type.
+
+    ```json Request body (multipart/form-data)
+    {
+      "front_image": "<file>",
+      "back_image": "<file>"
+    }
+    ```
+
+    A success toast confirms the upload. The document view refreshes automatically.
+  </Step>
+</Steps>
+
+<Warning>
+  You must select a document type and provide both the front and back images before tapping **Upload**. Submitting with any field missing shows an error and no upload is attempted.
+</Warning>
+
+### Viewing existing documents
+
+When you tap a document type, the screen fetches your existing images from:
+
+```http
+GET /v2/profile
+```
+
+If both front and back images are already on file, the upload controls are hidden and the existing images are shown as read-only thumbnails.
+
+### Removing a staged image
+
+Before uploading, tap a thumbnail to open a deletion confirmation dialog. Confirm to remove the staged image so you can replace it.
+
+<Note>
+  Deletion only removes the locally staged image. It does not delete a document that has already been submitted to the server.
+</Note>
+
+### Verification status on the profile screen
+
+The profile screen shows a progress bar under the **Account Security** row:
+
+| Documents with both images uploaded | Status | Colour |
+|---|---|---|
+| 1 | Poor | Red |
+| 2 | Good | Yellow |
+| 3 | Excellent | Green |
+
+## Resetting your PIN
+
+You can reset your 4-digit PIN at any time from the Profile screen. The reset flow consists of three screens.
+
+<Steps>
+  <Step title="Enter new PIN">
+    **Route:** `RESET_PIN_INPUT`
+
+    Enter a new 4-digit PIN using the secure PIN input.
+
+    ```http
+    POST /v2/resetPin
+    ```
+
+    ```json Request body
+    {
+      "new_pin": "5678"
+    }
+    ```
+
+    On success, the app navigates to the confirmation screen, passing `new_pin` as a route parameter.
+  </Step>
+  <Step title="Confirm new PIN">
+    **Route:** `RESET_CONFIRM_PIN`
+
+    Re-enter the same 4-digit PIN to confirm it.
+
+    Before making an API call, the app validates:
+
+    1. The entry is exactly 4 digits.
+    2. The value matches the PIN entered in the previous step.
+
+    ```http
+    POST /v2/confirmPin
+    ```
+
+    ```json Request body
+    {
+      "confirm_pin": "5678"
+    }
+    ```
+
+    The server response must contain `message: "Pin reset successful!"` for the flow to proceed. Any other response triggers an error toast.
+
+    <Warning>
+      If the confirmation PIN does not match the PIN entered in the previous step, the error "Pin is not matching with new pin" is shown locally and no API call is made.
+    </Warning>
+  </Step>
+  <Step title="Reset complete">
+    **Route:** `RESET_PIN_SUCCESS`
+
+    A success screen displays "Pin Set Successfully!" along with the time the reset was completed. Tap **Done** to return to the Profile screen.
+  </Step>
+</Steps>
+
+## Security best practices
+
+<Warning>
+  Keep your PIN private. DOSS support staff will never ask for your PIN.
+</Warning>
+
+- Choose a PIN that is not easily guessable (avoid sequences like `1234` or repeated digits).
+- Do not share your PIN with anyone, including people claiming to represent DOSS.
+- Reset your PIN immediately if you believe it has been compromised.
+- Keep your identity documents up to date to maintain full account access.

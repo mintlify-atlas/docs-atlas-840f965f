@@ -1,0 +1,149 @@
+---
+title: "Notifications"
+description: "Fetch and mark as read app notifications and government alert notifications"
+---
+
+The DOSS app has two separate notification feeds: in-app DOSS notifications (e.g. payment events) and government alert notifications (e.g. emergency alerts). Both feeds support infinite scroll pagination and display an unread count badge.
+
+<Note>
+  All notification endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## Get DOSS notifications
+
+`GET /v2/doss_notification`
+
+Returns a paginated list of in-app notifications for the authenticated user.
+
+### Query parameters
+
+<ParamField query="page" type="integer" default="1">
+  The page number to fetch for pagination.
+</ParamField>
+
+### Response
+
+<ResponseField name="unread" type="integer">
+  The total count of unread notifications. Displayed on the first page of results.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="data" type="object[]">
+      Array of notification objects.
+      <Expandable title="notification properties">
+        <ResponseField name="id" type="integer">
+          The notification's numeric ID. Used to mark the notification as read.
+        </ResponseField>
+        <ResponseField name="notification_messages" type="string">
+          The notification body text.
+        </ResponseField>
+        <ResponseField name="is_read" type="boolean">
+          Whether the notification has been read. Unread notifications have a distinct background in the UI.
+        </ResponseField>
+        <ResponseField name="created_at" type="string">
+          ISO 8601 timestamp when the notification was created.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl "https://dossapp.com/api/v2/doss_notification?page=1" \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Mark DOSS notification as read
+
+`GET /v2/readdoss_notification/:id`
+
+Marks a specific in-app notification as read. The client calls this endpoint when the user taps a notification item. After a successful response, the notification list is refreshed.
+
+### Path parameters
+
+<ParamField path="id" type="integer" required>
+  The numeric ID of the notification to mark as read.
+</ParamField>
+
+```bash
+curl https://dossapp.com/api/v2/readdoss_notification/42 \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Get alert notifications
+
+`GET /v2/doss_alert_notification`
+
+Returns a paginated list of government alert notifications for the authenticated user.
+
+### Query parameters
+
+<ParamField query="page" type="integer" default="1">
+  The page number to fetch for pagination.
+</ParamField>
+
+### Response
+
+<ResponseField name="unread" type="integer">
+  The total count of unread alert notifications.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties">
+    <ResponseField name="data" type="object[]">
+      Array of alert notification objects.
+      <Expandable title="alert notification properties">
+        <ResponseField name="id" type="integer">
+          The alert's numeric ID. Used to mark the alert as read.
+        </ResponseField>
+        <ResponseField name="notification_title" type="string">
+          The alert's title text.
+        </ResponseField>
+        <ResponseField name="notification_messages" type="string">
+          The alert's body text.
+        </ResponseField>
+        <ResponseField name="is_read" type="boolean">
+          Whether the alert has been read. Unread alerts display with a red background.
+        </ResponseField>
+        <ResponseField name="created_at" type="string">
+          ISO 8601 timestamp when the alert was created.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl "https://dossapp.com/api/v2/doss_alert_notification?page=1" \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Mark alert notification as read
+
+`GET /v2/readdoss_alert_notification/:id`
+
+Marks a specific government alert notification as read. After a successful response, the alert list is refreshed.
+
+### Path parameters
+
+<ParamField path="id" type="integer" required>
+  The numeric ID of the alert notification to mark as read.
+</ParamField>
+
+```bash
+curl https://dossapp.com/api/v2/readdoss_alert_notification/7 \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```

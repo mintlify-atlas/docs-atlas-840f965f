@@ -1,0 +1,91 @@
+---
+title: "Dashboard"
+description: "Your home screen — balance, quick actions, and recent transactions"
+---
+
+The dashboard is the first screen you see after logging in. It gives you an at-a-glance view of your wallet balance, provides quick access to core actions, and shows your recent transaction history.
+
+## Screen components
+
+<CardGroup cols={2}>
+  <Card title="Header" icon="user">
+    Displays your avatar, a personalized welcome greeting with your first name, and the DOSS logo.
+  </Card>
+  <Card title="Balance" icon="wallet">
+    Shows your current wallet balance with a show/hide toggle (eye icon), a notification bell, and a government alert icon.
+  </Card>
+  <Card title="Quick actions" icon="bolt">
+    Two shortcut cards: **My Identity** (navigates to identity verification) and **Scan & Pay** (opens the QR scanner).
+  </Card>
+  <Card title="Transaction history" icon="clock-rotate-left">
+    Recent transactions grouped by date, with a **View All** link to the full transaction history screen.
+  </Card>
+</CardGroup>
+
+## Balance display
+
+Your balance is hidden by default. Tap the eye icon to toggle visibility.
+
+- **Hidden state** — balance shown as `********`
+- **Visible state** — balance shown as `$0.00` (two decimal places)
+
+The balance value comes from `wallet_dashboard.balance` in the dashboard API response and is stored in the global wallet state via `useWallet`.
+
+## Notification icons
+
+Two icons appear in the top-right of the balance section:
+
+| Icon | Destination |
+|---|---|
+| Bell (notifications) | `DOSS_NOTIFICATIONS` screen |
+| Government alert | `ALERT_NOTIFICATIONS` screen |
+
+## Quick actions
+
+<CardGroup cols={2}>
+  <Card title="My Identity" icon="id-card" href="/features/identity-verification">
+    Opens the Identity Verification screen where you can view your QR code and verified profile.
+  </Card>
+  <Card title="Scan & Pay" icon="qrcode" href="/features/scan-and-pay">
+    Opens the camera to scan a merchant or user QR code and initiate a payment.
+  </Card>
+</CardGroup>
+
+## Recent transactions
+
+Transactions are grouped by date using the `formatTransactionDate` helper. Each group shows the date label followed by its transaction items.
+
+<Note>
+  Transactions with a `null` cart are automatically filtered out and will not appear in the list.
+</Note>
+
+### Tapping a transaction
+
+The behavior when tapping a transaction depends on its status:
+
+- **`Awaiting`** — navigates to the `PAYMENT_REQUESTED` screen, passing through the amount, timestamp, merchant image, store name, cashier name, and transaction UUID.
+- **Any other status** — opens a `TransactionModal` overlay with full transaction details.
+
+### View all
+
+Tapping **View All** navigates to the `TRANSACTION_HISTORY` screen, which provides search and pagination over your complete transaction history.
+
+## Data fetching
+
+The dashboard fetches data from a single endpoint on mount and on pull-to-refresh:
+
+```http
+GET /v2/doss_dashboard
+```
+
+The response contains three top-level keys used by the dashboard:
+
+| Key | Used by |
+|---|---|
+| `wallet_dashboard` | Balance display, stored in `useWallet` global state |
+| `wallets` | Stored in `useWallet` global state |
+| `transactions` | Recent transaction list |
+
+## Pull-to-refresh
+
+Pull down anywhere on the dashboard to trigger a refresh. The spinner uses the app's primary color. The dashboard also loads fresh profile data (`GET /v2/profile`) in parallel with the dashboard request.

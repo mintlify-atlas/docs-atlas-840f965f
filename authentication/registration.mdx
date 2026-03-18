@@ -1,0 +1,208 @@
+---
+title: "User Registration"
+description: "Step-by-step guide to creating a new DOSS account"
+---
+
+Registration in DOSS is a multi-step KYC (Know Your Customer) process that verifies both an email address and a phone number before allowing the user to set a PIN and create their account.
+
+<Note>
+All form validation uses [react-hook-form](https://react-hook-form.com/) with [Zod](https://zod.dev/) schema resolvers. OTP inputs use a dedicated `OTPInput` component that enforces a maximum length of 4 digits.
+</Note>
+
+## Registration flow
+
+<Steps>
+  <Step title="Enter email address">
+    **Screen:** `EmailInput` (`src/screens/Authentication/EmailVerify/EmailInput.jsx`)
+
+    The user enters their email address. The field is validated with the following Zod schema before the API call is made:
+
+    ```javascript EmailInput.jsx
+    const schema = z.object({
+      email: z
+        .string({ required_error: 'Email field is required' })
+        .email({ message: 'Invalid email address' }),
+    });
+    ```
+
+    On submit, a POST request is sent to send an OTP to the provided email:
+
+    ```
+    POST /v2/email_send_otp
+    ```
+
+    ```json Request body
+    {
+      "email": "user@example.com"
+    }
+    ```
+
+    A successful response returns the user object including `email`, `uuid`, and `verification_code`. The app navigates to `EMAIL_VERIFY`, passing `email`, `uuid`, and `verification_code` as route params.
+  </Step>
+
+  <Step title="Verify email OTP">
+    **Screen:** `EmailVerify` (`src/screens/Authentication/EmailVerify/EmailVerify.jsx`)
+
+    The user enters the 4-digit OTP sent to their email. The code is valid for 5 minutes.
+
+    ```
+    POST /v2/email_verify_otp
+    ```
+
+    ```json Request body
+    {
+      "email": "user@example.com",
+      "verification_code": "1234"
+    }
+    ```
+
+    On success, the app navigates to `EMAIL_VERIFY_SUCCESS`, adding `email_verify_at` (timestamp) to the route params.
+
+    <Warning>
+    If the OTP length is not exactly 4 digits when the user taps Confirm, a client-side validation error is shown before the API call is made.
+    </Warning>
+  </Step>
+
+  <Step title="Email verified">
+    **Screen:** `EmailVerifySuccess` (`src/screens/Authentication/EmailVerify/EmailVerifySuccess.jsx`)
+
+    Displays a success confirmation with the verification timestamp formatted as `hh:mm A`. The user taps **Continue** to proceed to phone number entry.
+
+    The app navigates to `NUMBER_INPUT`, carrying all previous route params forward.
+  </Step>
+
+  <Step title="Enter phone number">
+    **Screen:** `NumberInput` (`src/screens/Authentication/NumberVerify/NumberInput.jsx`)
+
+    The user selects a country code from a picker (defaulting to `+1868` / Trinidad and Tobago) and enters their phone number. The phone number field is prefilled with the dial code on focus.
+
+    ```
+    POST /v2/phone_send_otp
+    ```
+
+    ```json Request body
+    {
+      "email": "user@example.com",
+      "phone": "+18681234567"
+    }
+    ```
+
+    On success, the app navigates to `NUMBER_VERIFY`, passing the entered `phone` in route params.
+  </Step>
+
+  <Step title="Verify phone OTP">
+    **Screen:** `NumberVerify` (`src/screens/Authentication/NumberVerify/NumberVerify.jsx`)
+
+    The user enters the 4-digit OTP sent to their phone. The code is valid for 5 minutes.
+
+    ```
+    POST /v2/phone_verify_otp
+    ```
+
+    ```json Request body
+    {
+      "uuid": "<user-uuid>",
+      "verification_code": "5678"
+    }
+    ```
+
+    On success, the app navigates to `NUMBER_VERIFY_SUCCESS`, adding `phone_verify_at` to the route params.
+  </Step>
+
+  <Step title="Phone verified">
+    **Screen:** `NumberVerifySuccess` (`src/screens/Authentication/NumberVerify/NumberVerifySuccess.jsx`)
+
+    Displays a success confirmation with the phone verification timestamp. The user taps **Continue** to proceed.
+
+    The app navigates to `EMAIL_NUMBER_VERIFY_SUCCESS`.
+  </Step>
+
+  <Step title="Both verifications complete">
+    **Screen:** `EmailNumberVerifySuccess` (`src/screens/Authentication/Success/EmailNumberVerifySuccess.jsx`)
+
+    An info screen confirming that both email and phone have been verified. The user taps **Start KYC** to proceed to PIN creation.
+
+    The app navigates to `CREATE_PIN_INPUT`.
+  </Step>
+
+  <Step title="Create PIN">
+    **Screen:** `CreatePinInput` (`src/screens/Authentication/CreatePin/CreatePinInput.jsx`)
+
+    The user sets their personal 4-digit PIN. This PIN is used for all future logins and payment confirmations.
+
+    ```
+    POST /v2/set_pin
+    ```
+
+    ```json Request body
+    {
+      "uuid": "<user-uuid>",
+      "pin": "1234"
+    }
+    ```
+
+    On success, the app navigates to `CONFIRM_PIN`, passing the entered `pin` in route params.
+  </Step>
+
+  <Step title="Confirm PIN">
+    **Screen:** `ConfirmPin` (`src/screens/Authentication/CreatePin/ConfirmPin.jsx`)
+
+    The user re-enters their PIN to confirm it. On success:
+
+    ```
+    POST /v2/confirm_pin
+    ```
+
+    ```json Request body
+    {
+      "uuid": "<user-uuid>",
+      "confirm_pin": "1234",
+      "fcm_last_login_device_token": "<fcm-token>"
+    }
+    ```
+
+    The response includes the JWT `token` and user object. The token is written to AsyncStorage under the key `token`, and the user object is stored in `useAuthStore` via `setUser`.
+
+    The app navigates to `CREATE_PIN_SUCCESS`.
+  </Step>
+
+  <Step title="Registration complete">
+    **Screen:** `CreatePinSuccess` (`src/screens/Authentication/CreatePin/CreatePinSuccess.jsx`)
+
+    Displays "Pin Set Successfully!" with the timestamp. The user taps **Done**.
+
+    `setLoggedIn(true)` is called, and the navigation stack is reset to `MAIN_STACK`, taking the user directly into the authenticated experience.
+
+    <Tip>
+    After this point the user also has access to the `SIGN_UP_SUCCESS` screen (`src/screens/Authentication/Success/SignUpSuccess.jsx`), which is the onboarding completion screen reachable from the authenticated home screen.
+    </Tip>
+  </Step>
+</Steps>
+
+## Route parameter chain
+
+Route params are threaded through the entire registration flow so that each screen has access to the data it needs:
+
+```
+EmailInput
+  └─▶ EmailVerify        { email, uuid, verification_code }
+        └─▶ EmailVerifySuccess  { ..., email_verify_at }
+              └─▶ NumberInput         { ..., email_verify_at }
+                    └─▶ NumberVerify        { ..., phone }
+                          └─▶ NumberVerifySuccess { ..., phone_verify_at }
+                                └─▶ EmailNumberVerifySuccess { ...all params }
+                                      └─▶ CreatePinInput      { uuid, ... }
+                                            └─▶ ConfirmPin          { uuid, pin, ... }
+                                                  └─▶ CreatePinSuccess  { pin_verify_at }
+```
+
+## Validation rules summary
+
+| Field | Rule | Error message |
+|---|---|---|
+| `email` | Required, valid email format | `Email field is required` / `Invalid email address` |
+| `verification_code` (email) | Exactly 4 digits | `Code length should be 4` |
+| `phone` | Numeric, prefixed with dial code | Client-side format enforcement |
+| `verification_code` (phone) | Exactly 4 digits | `Code length should be 4` |
+| `pin` | Exactly 4 digits | `Code length should be 4` |
+| `confirm_pin` | Exactly 4 digits | `Code length should be 4` |

@@ -1,0 +1,126 @@
+---
+title: "Identity"
+description: "Check identity verification status and upload supporting documents"
+---
+
+The DOSS app supports uploading three types of identity documents: a national ID card, a passport, and a driving licence. Each document requires both a front and back image. The verification status is surfaced on the Account Security screen as a progress indicator.
+
+<Note>
+  All identity endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## Get identity verification status
+
+`GET /v2/id_proof`
+
+Returns the current identity verification status for the authenticated user, including the uploaded document images if available.
+
+<Note>
+  In practice, document image URLs are also returned as part of the `GET /v2/profile` response (fields `id_proof_front`, `id_proof_back`, `passport_img_front`, `passport_img_back`, `driving_license_front`, `driving_license_back`). The profile endpoint is used by the Documents screen to pre-populate existing uploads.
+</Note>
+
+### Response
+
+<ResponseField name="id_proof_front" type="string">
+  URL of the front image of the uploaded national ID, or `null` if not yet uploaded.
+</ResponseField>
+
+<ResponseField name="id_proof_back" type="string">
+  URL of the back image of the uploaded national ID, or `null` if not yet uploaded.
+</ResponseField>
+
+<ResponseField name="passport_img_front" type="string">
+  URL of the front image of the uploaded passport, or `null` if not yet uploaded.
+</ResponseField>
+
+<ResponseField name="passport_img_back" type="string">
+  URL of the back image of the uploaded passport, or `null` if not yet uploaded.
+</ResponseField>
+
+<ResponseField name="driving_license_front" type="string">
+  URL of the front image of the uploaded driving licence, or `null` if not yet uploaded.
+</ResponseField>
+
+<ResponseField name="driving_license_back" type="string">
+  URL of the back image of the uploaded driving licence, or `null` if not yet uploaded.
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/id_proof \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Upload passport images
+
+`POST /v2/passport_image`
+
+Uploads front and back images of the user's passport. Both files must be included in a single `multipart/form-data` request.
+
+<Warning>
+  This endpoint accepts `multipart/form-data` only. Do not send JSON. Both `front_image` and `back_image` fields are required.
+</Warning>
+
+### Request body
+
+<ParamField body="front_image" type="file" required>
+  Image file for the front of the passport. Accepts JPEG, PNG, or common document formats.
+</ParamField>
+
+<ParamField body="back_image" type="file" required>
+  Image file for the back of the passport.
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  A success message confirming the upload.
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/passport_image \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -F "front_image=@/path/to/passport-front.jpg" \
+  -F "back_image=@/path/to/passport-back.jpg"
+```
+
+---
+
+## Upload driving licence images
+
+`POST /v2/driving_license_image`
+
+Uploads front and back images of the user's driving licence. Both files must be included in a single `multipart/form-data` request.
+
+<Warning>
+  This endpoint accepts `multipart/form-data` only. Do not send JSON. Both `front_image` and `back_image` fields are required.
+</Warning>
+
+### Request body
+
+<ParamField body="front_image" type="file" required>
+  Image file for the front of the driving licence.
+</ParamField>
+
+<ParamField body="back_image" type="file" required>
+  Image file for the back of the driving licence.
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  A success message confirming the upload.
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/driving_license_image \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -F "front_image=@/path/to/licence-front.jpg" \
+  -F "back_image=@/path/to/licence-back.jpg"
+```

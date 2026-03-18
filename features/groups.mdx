@@ -1,0 +1,114 @@
+---
+title: "Groups"
+description: "Join payment groups and settle shared expenses"
+---
+
+Groups allow you to participate in shared payment arrangements organized by merchants. Once you join a group, payments can be routed or split according to the group's configuration.
+
+## Accessing groups
+
+Groups are managed from **Profile → Preferences → Groups**.
+
+## Viewing groups
+
+The Groups screen fetches all group data from:
+
+```http
+GET /v2/doss_groups
+```
+
+The response contains two arrays:
+
+| Key | Description |
+|---|---|
+| `mygroups` | Groups you have already joined |
+| `othergroups` | Available groups you have not yet joined |
+
+The screen uses a tab toggle to switch between **My Groups** and **Other Groups**. Both tabs support pull-to-refresh.
+
+### Group item fields
+
+Each group card displays:
+
+- `name` — group name
+- `created_by` — who created the group
+- `created_at` — creation date (formatted as locale date string)
+
+## Joining a group
+
+<Steps>
+  <Step title="Find the group">
+    Switch to the **Other Groups** tab to see groups available to join.
+  </Step>
+
+  <Step title="Tap Join Group">
+    Tap the **Join Group** button on the group card. The app navigates to the `ENTER_GROUP_PIN` screen, passing the `groupId`.
+  </Step>
+
+  <Step title="Enter the 6-digit group code">
+    On the `ENTER_GROUP_PIN` screen, enter the 6-digit code provided by the group administrator.
+
+    <Note>
+      The code must be exactly 6 digits. Submitting fewer digits shows an error toast.
+    </Note>
+  </Step>
+
+  <Step title="Submit">
+    Tap **Join Group**. The app calls:
+
+    ```http
+    POST /v2/join_group
+    ```
+
+    ```json
+    {
+      "code": "123456",
+      "groupId": 42
+    }
+    ```
+
+    On success, the groups list is refreshed and you are returned to the Groups screen. The joined group now appears in the **My Groups** tab.
+  </Step>
+</Steps>
+
+## Leaving a group
+
+<Steps>
+  <Step title="Find the group">
+    Go to the **My Groups** tab and locate the group you want to leave.
+  </Step>
+
+  <Step title="Tap Leave Group">
+    Tap the **Leave Group** button (red) on the group card. A confirmation modal appears asking:
+
+    > Are you sure you want to leave this group?
+  </Step>
+
+  <Step title="Confirm">
+    Tap **Yes** to confirm. The app calls:
+
+    ```http
+    DELETE /v2/leave_group/:id
+    ```
+
+    <Note>
+      The implementation uses a `GET` request to the `leave_group/:id` endpoint. Consult your backend team if you need to change this to a `DELETE` method.
+    </Note>
+
+    On success, a success toast is shown and the groups list is refreshed. The group moves from **My Groups** back to **Other Groups**.
+  </Step>
+</Steps>
+
+<Warning>
+  Leaving a group is immediate and cannot be undone from the app. You will need to re-enter the 6-digit group code to rejoin.
+</Warning>
+
+## Error handling
+
+Both join and leave operations surface errors as toast messages at the top of the screen. Common error cases:
+
+- Invalid or expired group code
+- Network failure
+- Group no longer available
+
+The error message is taken from the server response (`error.response.data.message` or `error.response.data.errors.code[0]`) with a generic fallback of `"Something went wrong! Try again"`.

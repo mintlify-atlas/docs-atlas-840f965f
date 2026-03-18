@@ -1,0 +1,118 @@
+---
+title: "Notifications"
+description: "DOSS app notifications and government alerts"
+---
+
+The DOSS app delivers two distinct types of notifications: app-level DOSS notifications and government alert notifications. Each has its own screen, endpoint, and read-state management.
+
+## Notification types
+
+<CardGroup cols={2}>
+  <Card title="DOSS Notifications" icon="bell">
+    App-level events such as payment confirmations, incoming payment requests, and account updates.
+  </Card>
+  <Card title="Alert Notifications" icon="triangle-exclamation">
+    Government-issued alerts and important public notices.
+  </Card>
+</CardGroup>
+
+## DOSS notifications
+
+### Fetching
+
+```http
+GET /v2/doss_notification
+```
+
+The screen uses infinite scroll pagination. Scroll to the bottom to load older notifications. The unread count is displayed at the top of the list.
+
+### Marking as read
+
+Tapping any notification row calls:
+
+```http
+GET /v2/readdoss_notification/:id
+```
+
+On a successful `200` response, the list is refreshed. Unread notifications have a gray background; read notifications have a white background.
+
+### Notification item fields
+
+| Field | Description |
+|---|---|
+| `notification_messages` | The notification body text |
+| `created_at` | Date displayed as `DD MMM YYYY` |
+| `is_read` | Controls background color (gray = unread, white = read) |
+
+## Alert notifications
+
+### Fetching
+
+```http
+GET /v2/doss_alert_notification
+```
+
+Also paginated with infinite scroll. The unread count is displayed at the top.
+
+### Marking as read
+
+Tapping an alert calls:
+
+```http
+GET /v2/readdoss_alert_notification/:id
+```
+
+Unread alerts are shown with a red background (`redRGB`); read alerts use a white background. The icon also changes: unread alerts display `AlertAware`, read alerts display `AlertGovt`.
+
+### Alert item fields
+
+| Field | Description |
+|---|---|
+| `notification_title` | Bold title at the top of the item |
+| `notification_messages` | Full body text |
+| `created_at` | Date displayed as `DD MMM YYYY` |
+| `is_read` | Controls background color and icon |
+
+## Notification badges on the dashboard
+
+Two icons in the balance section of the Home screen act as entry points:
+
+- **Bell icon** → opens `DOSS_NOTIFICATIONS`
+- **Government alert icon** → opens `ALERT_NOTIFICATIONS`
+
+## Firebase Cloud Messaging (FCM)
+
+The app integrates Firebase Cloud Messaging for push notifications. Two FCM lifecycle hooks handle deep linking:
+
+### Foreground / background open
+
+```javascript
+messaging().onNotificationOpenedApp(remoteMessage => {
+  // Fired when user taps a notification while the app is in background
+});
+```
+
+### Cold start (app closed)
+
+```javascript
+messaging().getInitialNotification().then(remoteMessage => {
+  // Fired when user taps a notification that launched the app from quit state
+});
+```
+
+### Deep link scheme
+
+Incoming push notifications use the `doss://` custom URL scheme for deep linking. The notification payload routes to one of the following screens based on the notification type:
+
+| Deep link target | Screen |
+|---|---|
+| DOSS notification | `DOSS_NOTIFICATIONS` |
+| Government alert | `ALERT_NOTIFICATIONS` |
+
+<Tip>
+  Both notification screens support pull-to-refresh. Pull down to manually reload the notification list.
+</Tip>
+
+## Navigating back
+
+Both notification screens override the back navigation to reset the stack to `MAIN_STACK`, ensuring you always return to the main app shell rather than an intermediate route.

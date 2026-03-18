@@ -1,0 +1,80 @@
+---
+title: "API Overview"
+description: "Base URL, authentication, and common patterns for the DOSS User App API"
+---
+
+The DOSS API powers the DOSS User App — a React Native mobile payment application. All endpoints are prefixed with `/v2/` and served over HTTPS.
+
+## Base URL
+
+```
+https://dossapp.com/api
+```
+
+All requests must be made to this base URL. The Axios client is configured with a 30-second timeout.
+
+## Authentication
+
+Most endpoints require a Bearer token in the `Authorization` header. The token is returned after a successful login via `POST /v2/new-login` or after completing the registration flow via `POST /v2/confirm_pin`.
+
+The token is stored in `AsyncStorage` on the device under the key `token` and is automatically attached to every request by the Axios request interceptor.
+
+```bash
+curl https://dossapp.com/api/v2/profile \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+<Note>
+  All requests must include `Accept: application/json`. Requests without a valid token to protected endpoints will return an `Unauthenticated.` error message, which triggers an automatic logout on the client.
+</Note>
+
+## Error handling
+
+When the API responds with `{ "message": "Unauthenticated." }`, the client clears the stored token and redirects the user to the login screen. All other errors are returned as standard HTTP error responses.
+
+## Common request patterns
+
+### JSON body requests
+
+For `POST` and `PUT` endpoints, send data as a JSON body with `Content-Type: application/json`.
+
+### Multipart file uploads
+
+For endpoints that accept images or documents, send data as `multipart/form-data`. The file field name varies by endpoint (e.g., `image` for profile photos, `front_image` / `back_image` for identity documents).
+
+### Paginated responses
+
+List endpoints support cursor-based pagination. Pass a `page` query parameter to fetch subsequent pages. Responses include a `data` array and pagination metadata.
+
+## Endpoint index
+
+| Category | Endpoint | Method | Description |
+|---|---|---|---|
+| **Authentication** | `/v2/email_send_otp` | POST | Send OTP to email |
+| | `/v2/email_verify_otp` | POST | Verify email OTP |
+| | `/v2/phone_send_otp` | POST | Send OTP to phone |
+| | `/v2/phone_verify_otp` | POST | Verify phone OTP |
+| | `/v2/set_pin` | POST | Set 4-digit PIN |
+| | `/v2/confirm_pin` | POST | Confirm PIN and complete registration |
+| | `/v2/new-login` | POST | Log in with phone and PIN |
+| **Profile** | `/v2/profile` | GET | Fetch authenticated user profile |
+| | `/v2/update_name` | PUT | Update first and last name |
+| | `/v2/update_email` | PUT | Update email address |
+| | `/v2/update_phone` | PUT | Update phone number |
+| | `/v2/update_image` | POST | Upload profile photo |
+| **Payments** | `/v2/scan-link` | POST | Resolve a scanned QR code |
+| | `/v2/confirm_payment_with_pin` | POST | Confirm a payment with PIN |
+| | `/v2/payment-request-action` | POST | Approve or reject a payment request |
+| **Transactions** | `/v2/transaction_history` | GET | Paginated transaction list |
+| | `/v2/doss_dashboard` | GET | Dashboard summary with balance and recent transactions |
+| **Notifications** | `/v2/doss_notification` | GET | Fetch app notifications |
+| | `/v2/readdoss_notification/:id` | GET | Mark a notification as read |
+| | `/v2/doss_alert_notification` | GET | Fetch government alert notifications |
+| | `/v2/readdoss_alert_notification/:id` | GET | Mark an alert notification as read |
+| **Identity** | `/v2/id_proof` | GET | Get identity verification status |
+| | `/v2/passport_image` | POST | Upload passport images |
+| | `/v2/driving_license_image` | POST | Upload driving licence images |
+| **Groups** | `/v2/doss_groups` | GET | List groups |
+| | `/v2/join_group` | POST | Join a group by code |
+| | `/v2/leave_group/:id` | GET | Leave a group |

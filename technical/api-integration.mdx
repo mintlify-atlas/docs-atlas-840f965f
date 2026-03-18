@@ -1,0 +1,445 @@
+---
+title: "API Integration"
+description: "Axios configuration, custom hooks, and request patterns"
+---
+
+All HTTP communication flows through a single Axios instance defined in `src/services/api-config/axios.js`. On top of that, a set of TanStack Query–based custom hooks provides a consistent interface for every type of request.
+
+## Axios instance
+
+`src/services/api-config/axios.js`
+
+```javascript
+import Axios from 'axios';
+import storage from '~/store/LocalStorage/storage';
+
+export const axios = Axios.create({
+  baseURL: 'https://dossapp.com/api',
+  timeout: 30000,
+});
+```
+
+| Setting | Value |
+|---|---|
+| `baseURL` | `https://dossapp.com/api` |
+| `timeout` | 30 000 ms |
+
+### Request interceptor — auth token
+
+Before every request, the interceptor reads the `token` key from AsyncStorage and attaches it as a `Bearer` token. The `Accept: application/json` header is also set unconditionally.
+
+```javascript
+axios.interceptors.request.use(async config => {
+  const token = await storage.getData('token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  config.headers.Accept = 'application/json';
+  return config;
+});
+```
+
+### Response interceptor — error handling
+
+The response interceptor watches for `401 Unauthenticated.` responses. When detected, it clears the stored token so the next app launch returns to the login screen.
+
+```javascript
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.data?.message === 'Unauthenticated.') {
+      await storage.clearData('token');
+    }
+    return Promise.reject(error);
+  },
+);
+```
+
+<Note>
+The response interceptor does not currently navigate the user to the login screen automatically after clearing the token. The next app launch (or any navigation action that checks `loggedIn`) will redirect to the unauthenticated stack.
+</Note>
+
+## Custom hooks
+
+All hooks live in `src/services/api-hooks/`. They accept an `endpoint` string (the path relative to `baseURL`) and an optional `config` object that is spread into the underlying TanStack Query options.
+
+### `useGetMethod`
+
+`src/services/api-hooks/useGetMethod.js`
+
+Wraps `useQuery` for GET requests. `refetchOnWindowFocus` is disabled globally.
+
+```javascript
+import { useQuery } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetch = async endpoint => {
+  return axios.get(endpoint).then(res => res.data);
+};
+
+export function useGetMethod({ endpoint, key, config }) {
+  return useQuery({
+    queryKey: [key],
+    queryFn: () => fetch(endpoint),
+    refetchOnWindowFocus: false,
+    ...config,
+  });
+}
+```
+
+**Parameters**
+
+| Param | Type | Description |
+|---|---|---|
+| `endpoint` | `string` | API path, e.g. `'/user/profile'` |
+| `key` | `string` | Cache key — typically the same as `endpoint` |
+| `config` | `object` | Any `useQuery` option (e.g. `enabled`, `staleTime`) |
+
+**Usage**
+
+```javascript
+const { data, isPending, isError } = useGetMethod({
+  endpoint: endpoints.profile,
+  key: endpoints.profile,
+  config: { enabled: !!loggedIn },
+});
+```
+
+---
+
+### `usePostMethod`
+
+`src/services/api-hooks/usePostMethod.js`
+
+Wraps `useMutation` for POST requests.
+
+```javascript
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetch = async (data, endPoint) => {
+  return axios.post(endPoint, data).then(res => res.data);
+};
+
+export function usePostMethod({ endpoint, config } = {}) {
+  return useMutation({
+    mutationFn: values => fetch(values, endpoint),
+    ...config,
+  });
+}
+```
+
+**Usage**
+
+```javascript
+const { mutate, isPending } = usePostMethod({
+  endpoint: endpoints.login,
+  config: {
+    onSuccess: data => {
+      storage.setData('token', data.token);
+      setLoggedIn(true);
+    },
+    onError: error => {
+      Toast.show({ type: 'error', text1: error.response?.data?.message });
+    },
+  },
+});
+
+// Call with form values
+mutate({ email, pin });
+```
+
+---
+
+### `usePutMethod`
+
+`src/services/api-hooks/usePutMethod.js`
+
+Wraps `useMutation` for PUT requests.
+
+```javascript
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetch = async (data, endPoint) => {
+  return axios.put(endPoint, data).then(res => res.data);
+};
+
+export function usePutMethod({ endpoint, config } = {}) {
+  return useMutation({
+    mutationFn: values => fetch(values, endpoint),
+    ...config,
+  });
+}
+```
+
+**Usage**
+
+```javascript
+const { mutate } = usePutMethod({
+  endpoint: endpoints.updateProfile,
+  config: {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [endpoints.profile] });
+    },
+  },
+});
+```
+
+---
+
+### `useDeleteMethod`
+
+`src/services/api-hooks/useDeleteMethod.js`
+
+Wraps `useMutation` for DELETE requests. The ID is appended directly to the endpoint string.
+
+```javascript
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+export const deleteFetch = async (endpoint, id) => {
+  return axios.delete(`${endpoint + id}`).then(res => res?.data);
+};
+
+export const useDeleteMethod = ({ endpoint, config }) => {
+  return useMutation({
+    mutationFn: values => deleteFetch(endpoint, values),
+    ...config,
+  });
+};
+```
+
+**Usage**
+
+```javascript
+// DELETE /documents/42
+const { mutate } = useDeleteMethod({
+  endpoint: endpoints.documents,   // '/documents/'
+  config: { onSuccess: () => { /* refresh list */ } },
+});
+
+mutate(42);
+```
+
+---
+
+### `useUploadImage`
+
+`src/services/api-hooks/useUploadImage.js`
+
+Uploads a single image as `multipart/form-data`. The image object must have `uri`, `type`, and optionally `name` / `fileName` fields (as returned by `react-native-image-picker`).
+
+```javascript
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetch = async (data, endPoint) => {
+  const image = {
+    uri: data.uri,
+    type: data.type,
+    name: data?.name || data?.fileName,
+  };
+
+  const payload = new FormData();
+  payload.append('image', image);
+
+  const res = await axios.post(endPoint, payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
+
+export function useUploadImage({ endpoint, config } = {}) {
+  return useMutation({
+    mutationFn: values => fetch(values, endpoint),
+    ...config,
+  });
+}
+```
+
+**Usage**
+
+```javascript
+const { mutate } = useUploadImage({ endpoint: endpoints.uploadAvatar });
+
+// imageAsset from react-native-image-picker response
+mutate(imageAsset);
+```
+
+---
+
+### `useUploadFiles`
+
+`src/services/api-hooks/useUploadFiles.js`
+
+Uploads multiple files in a single `multipart/form-data` request. The `files` argument is an object whose keys become the `FormData` field names.
+
+```javascript
+import { useMutation } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetch = async (files, endPoint) => {
+  const payload = new FormData();
+
+  Object.keys(files).forEach(item => {
+    const file = {
+      uri: files[item]?.uri,
+      type: files[item]?.type,
+      name: files[item]?.name || files[item]?.fileName,
+    };
+    payload.append(item, file);
+  });
+
+  const res = await axios.post(endPoint, payload, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
+
+export function useUploadFiles({ endpoint, config } = {}) {
+  return useMutation({
+    mutationFn: values => fetch(values, endpoint),
+    ...config,
+  });
+}
+```
+
+**Usage**
+
+```javascript
+const { mutate } = useUploadFiles({ endpoint: endpoints.kycDocuments });
+
+mutate({
+  front: frontDocumentAsset,
+  back:  backDocumentAsset,
+});
+// Sends FormData fields named 'front' and 'back'
+```
+
+---
+
+### `useOnScrollMethod`
+
+`src/services/api-hooks/useOnScrollMethod.js`
+
+Wraps `useInfiniteQuery` for paginated lists. Pages are fetched by appending `?page=N` to the endpoint. Pagination stops when `current_page === last_page` in the response.
+
+```javascript
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { axios } from '../api-config/axios';
+
+const fetchNextPage = async (endpoint, pageParam) => {
+  const url = `${endpoint}?page=${pageParam}`;
+  const response = await axios.get(url);
+  return response?.data;
+};
+
+export function useOnScrollMethod({ endpoint, key, config }) {
+  return useInfiniteQuery({
+    queryKey: [key],
+    queryFn: ({ pageParam }) => fetchNextPage(endpoint, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: lastPage => {
+      if (lastPage.data.current_page < lastPage.data.last_page) {
+        return lastPage.data.current_page + 1;
+      }
+      return undefined; // no more pages
+    },
+    ...config,
+  });
+}
+```
+
+**Usage**
+
+```javascript
+const {
+  data,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
+} = useOnScrollMethod({
+  endpoint: endpoints.transactions,
+  key: endpoints.transactions,
+});
+
+// Trigger next page when the FlatList nears the end
+const onEndReached = () => {
+  if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+};
+```
+
+The response shape expected by `getNextPageParam`:
+
+```json
+{
+  "data": {
+    "current_page": 1,
+    "last_page": 5,
+    "data": [ /* items */ ]
+  }
+}
+```
+
+## Error handling
+
+Errors from mutations and queries surface in two ways:
+
+<CardGroup cols={2}>
+  <Card title="Toast messages" icon="bell">
+    `react-native-toast-message` is used to display one-line error descriptions. Call `Toast.show` inside an `onError` callback with the API error message from `error.response?.data?.message`.
+  </Card>
+  <Card title="Inline error states" icon="triangle-alert">
+    Query hooks return `isError` and `error` fields. Components read these to render inline error text or retry buttons.
+  </Card>
+</CardGroup>
+
+```javascript
+// Toast on mutation error
+const { mutate } = usePostMethod({
+  endpoint: endpoints.pay,
+  config: {
+    onError: error => {
+      Toast.show({
+        type: 'error',
+        text1: error.response?.data?.message ?? 'Something went wrong',
+      });
+    },
+  },
+});
+
+// Inline error from a query
+const { data, isError, error } = useGetMethod({
+  endpoint: endpoints.wallet,
+  key: endpoints.wallet,
+});
+
+if (isError) {
+  return <Text>{error.response?.data?.message}</Text>;
+}
+```
+
+## Network status
+
+The app uses `@react-native-community/netinfo` to detect connectivity changes. When the device is offline, requests will fail with a network error rather than an API error.
+
+```javascript
+import NetInfo from '@react-native-community/netinfo';
+
+// Subscribe to connectivity changes
+const unsubscribe = NetInfo.addEventListener(state => {
+  if (!state.isConnected) {
+    Toast.show({ type: 'error', text1: 'No internet connection' });
+  }
+});
+
+// One-time check
+const state = await NetInfo.fetch();
+console.log('Connected:', state.isConnected);
+```
+
+<Tip>
+TanStack Query will automatically retry failed requests up to 3 times by default. For operations where an offline state should fail immediately, set `retry: false` in the `config` passed to the hook.
+</Tip>

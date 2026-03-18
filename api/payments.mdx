@@ -1,0 +1,197 @@
+---
+title: "Payments"
+description: "Initiate and confirm payments via QR code scan or payment request"
+---
+
+<Note>
+  All payment endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## Resolve scan link
+
+`POST /v2/scan-link`
+
+Resolves a raw QR code string scanned by the device camera. The response shape varies depending on whether the QR encodes a merchant payment link, a user profile link, or a fixed-amount payment URL.
+
+### Request body
+
+<ParamField body="link" type="string" required>
+  The raw string value read from the QR code.
+</ParamField>
+
+### Response
+
+<ResponseField name="is_string" type="boolean">
+  `true` if the QR encodes a merchant/cashier payment link where the user enters the amount. `false` if it encodes a fixed-amount payment or a user profile.
+</ResponseField>
+
+<ResponseField name="user_id" type="integer">
+  Present when the QR code encodes a user profile. When `user_id` is set and `is_string` is `false`, the client navigates to the scanned user's profile instead of the payment flow.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <Expandable title="properties (merchant payment — is_string: true)">
+    <ResponseField name="merchant" type="object">
+      <Expandable title="properties">
+        <ResponseField name="business_name" type="string">
+          The merchant's registered business name.
+        </ResponseField>
+        <ResponseField name="address" type="string">
+          The merchant's address.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="cashier" type="object">
+      <Expandable title="properties">
+        <ResponseField name="first_name" type="string">
+          The cashier's first name.
+        </ResponseField>
+        <ResponseField name="last_name" type="string">
+          The cashier's last name.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="merchantId" type="integer">
+      The merchant's numeric ID.
+    </ResponseField>
+    <ResponseField name="cashier_id" type="integer">
+      The cashier's numeric ID.
+    </ResponseField>
+    <ResponseField name="logo" type="string">
+      URL of the merchant's logo.
+    </ResponseField>
+    <ResponseField name="merchantDefaultCurrencyCode" type="string">
+      The merchant's default currency code (e.g., `usd`).
+    </ResponseField>
+  </Expandable>
+  <Expandable title="properties (fixed-amount payment — is_string: false)">
+    <ResponseField name="id" type="integer">
+      Payment record ID.
+    </ResponseField>
+    <ResponseField name="first_name" type="string">
+      Payee first name.
+    </ResponseField>
+    <ResponseField name="last_name" type="string">
+      Payee last name.
+    </ResponseField>
+    <ResponseField name="picture" type="string">
+      Payee profile picture URL.
+    </ResponseField>
+    <ResponseField name="note" type="string">
+      Optional note attached to the payment.
+    </ResponseField>
+    <ResponseField name="amount" type="string">
+      Pre-set payment amount.
+    </ResponseField>
+  </Expandable>
+  <Expandable title="properties (user profile — user_id present)">
+    <ResponseField name="first_name" type="string">
+      Scanned user's first name.
+    </ResponseField>
+    <ResponseField name="last_name" type="string">
+      Scanned user's last name.
+    </ResponseField>
+    <ResponseField name="picture" type="string">
+      Scanned user's profile picture filename.
+    </ResponseField>
+    <ResponseField name="uuid" type="string">
+      Scanned user's UUID.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/scan-link \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"link": "https://dossapp.com/pay/abc123"}'
+```
+
+---
+
+## Confirm payment with PIN
+
+`POST /v2/confirm_payment_with_pin`
+
+Finalises a payment that was initiated from a QR code scan. The user confirms by entering their 4-digit PIN. On success, the dashboard and transaction history caches are invalidated.
+
+### Request body
+
+<ParamField body="confirm_pin" type="string" required>
+  The user's 4-digit PIN.
+</ParamField>
+
+<ParamField body="link_type" type="string">
+  The type of payment link: `"string"` for merchant payments or `"url"` for fixed-amount payments. When `link_type` is `"string"`, the `merchant` and `cashier` objects from the scan response are omitted.
+</ParamField>
+
+<ParamField body="merchantId" type="integer">
+  The merchant's numeric ID. Required when `link_type` is `"string"`.
+</ParamField>
+
+<ParamField body="cashier_id" type="integer">
+  The cashier's numeric ID. Required when `link_type` is `"string"`.
+</ParamField>
+
+<ParamField body="amount" type="string">
+  The payment amount entered by the user.
+</ParamField>
+
+<ParamField body="payment_id" type="integer">
+  The payment record ID. Required when `link_type` is `"url"`.
+</ParamField>
+
+<ParamField body="note" type="string">
+  Optional note for the payment.
+</ParamField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/confirm_payment_with_pin \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm_pin": "4242", "link_type": "string", "merchantId": 5, "cashier_id": 12, "amount": "25.00"}'
+```
+
+---
+
+## Payment request action
+
+`POST /v2/payment-request-action`
+
+Approves or rejects an incoming payment request (such as a request from a merchant terminal). The user must enter their PIN to authorise the action. On success, the dashboard and transaction history caches are invalidated.
+
+### Request body
+
+<ParamField body="confirm_pin" type="string" required>
+  The user's 4-digit PIN.
+</ParamField>
+
+<ParamField body="txn_id" type="string" required>
+  The transaction UUID (`txn_uid`) of the pending payment request.
+</ParamField>
+
+<ParamField body="type" type="string" required>
+  The action to take. Must be `"approve"` or `"reject"`.
+</ParamField>
+
+### Response
+
+<ResponseField name="time" type="string">
+  Timestamp of when the action was processed.
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  A human-readable confirmation message.
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/payment-request-action \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm_pin": "4242", "txn_id": "txn-uuid-here", "type": "approve"}'
+```

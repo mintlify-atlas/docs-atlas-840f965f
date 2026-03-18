@@ -1,0 +1,84 @@
+---
+title: "Identity Verification"
+description: "Verify your identity with government-issued documents"
+---
+
+Identity verification confirms your identity within the DOSS system. Verified users can access the full range of payment features and may have higher transaction limits.
+
+## Accessing the screen
+
+Tap the **My Identity** card on the dashboard to open the `IDENTITY_VERIFICATION` screen.
+
+## What the screen shows
+
+The Identity Verification screen displays your verified identity card:
+
+- **Profile photo** — your account avatar with a green border and a verified badge overlay
+- **Full name** — first name and last name in large type
+- **QR code** — generated from your unique user UUID using `react-native-qrcode-svg`
+- **User ID** — your UUID displayed below the QR code
+- **Instruction text** — "Show QR to verify your identity"
+
+<Note>
+  The QR code on this screen is your personal identity QR, not a payment QR. Merchants or staff can scan it to confirm your identity without initiating a payment.
+</Note>
+
+## Identity data source
+
+User details (name, profile image, UUID) are read from the `useAuthStore` global store, which is populated during login and profile fetch (`GET /v2/profile`).
+
+## Document upload
+
+To complete full identity verification, you upload government-issued documents through the `DOCUMENTS` route in the Account Security section.
+
+### Supported document types
+
+<CardGroup cols={2}>
+  <Card title="Passport" icon="passport">
+    Upload a photo of your passport.
+
+    ```http
+    POST /v2/passport_image
+    ```
+  </Card>
+  <Card title="Driving licence" icon="id-card">
+    Upload a photo of your driving licence.
+
+    ```http
+    POST /v2/driving_license_image
+    ```
+  </Card>
+</CardGroup>
+
+### Checking verification status
+
+The current status of your identity documents is fetched from:
+
+```http
+GET /v2/id_proof
+```
+
+This endpoint returns the state of each uploaded document (for example: pending review, approved, or rejected).
+
+## Updating your profile photo
+
+Your profile photo is separate from identity documents. To update it:
+
+```http
+POST /v2/update_image
+```
+
+The updated image is reflected on both the Home screen avatar and the Identity Verification card.
+
+## Scanning another user's identity
+
+When you scan another user's QR code using **Scan & Pay**, the app detects it is a user identity QR (not a merchant QR) and navigates to the `SCANNER_PROFILE` (`ScannedProfile`) screen instead of the payment flow.
+
+The ScannedProfile screen shows:
+
+- The scanned user's profile photo (with green border and verified badge)
+- Their full name
+- A **User Is Verified** confirmation (green tick)
+- Their User ID (UUID)
+
+This allows you to confirm someone's identity without making a payment.

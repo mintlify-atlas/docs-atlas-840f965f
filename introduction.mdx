@@ -1,0 +1,54 @@
+---
+title: "Introduction"
+description: "What DOSS is, who it's for, and how it works"
+---
+
+DOSS (Distribution of Support Services) is a React Native mobile payment application that lets users receive support payments, scan QR codes to pay approved merchants, and manage their digital wallet — all secured behind identity verification and a PIN-based authentication layer.
+
+## Who uses DOSS
+
+DOSS is built for end users who receive and spend support payments digitally. Once registered and verified, users can make QR-based payments at approved merchants, view their transaction history, and manage their account from a single app.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="QR scanning & payments" icon="qrcode" href="/features/scan-and-pay">
+    Scan merchant QR codes and confirm payments with your PIN at approved merchants nationwide.
+  </Card>
+  <Card title="Digital wallet" icon="wallet" href="/features/dashboard">
+    View your balance, recent activity, and merchant listings from the home dashboard.
+  </Card>
+  <Card title="Transaction history" icon="clock-rotate-left" href="/features/transaction-history">
+    Browse a complete record of past payments and incoming support deposits.
+  </Card>
+  <Card title="Identity verification" icon="id-card" href="/features/identity-verification">
+    Submit an ID card, driver's license, or passport to unlock full app functionality.
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Receive DOSS alerts and payment request notifications via Firebase Cloud Messaging.
+  </Card>
+  <Card title="Group payments" icon="users" href="/features/groups">
+    Join or leave payment groups and authorise group transactions with a dedicated PIN.
+  </Card>
+</CardGroup>
+
+## How the app is structured
+
+The app follows a linear launch sequence and then branches based on authentication state:
+
+1. **Splash screen** — displays the DOSS logo and a "Get Started" button. On first launch it routes to Onboarding; on subsequent launches it routes directly to the home dashboard.
+2. **Onboarding** — a four-slide walkthrough covering identity verification, support payments, scan-and-pay, and document requirements.
+3. **Authentication flow** — unverified users register via email OTP → phone OTP → PIN creation. Returning users log in with their email and PIN.
+4. **Home dashboard** — the authenticated root, giving access to all core features through a bottom tab navigator.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.73.6 |
+| Navigation | React Navigation 6 (native stack + bottom tabs) |
+| Server state | TanStack Query (React Query) v5 |
+| Client state | Zustand v4 |
+| Push notifications | Firebase Cloud Messaging (`@react-native-firebase`) |
+| Forms | React Hook Form + Zod |
+| HTTP client | Axios |

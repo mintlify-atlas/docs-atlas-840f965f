@@ -1,0 +1,118 @@
+---
+title: "Groups"
+description: "List, join, and leave DOSS groups"
+---
+
+Groups allow users to be associated with organisations or communities within the DOSS platform. A user can belong to multiple groups. Groups are browsed from the Preferences screen and split into two tabs: groups the user belongs to (My Groups) and all other available groups (Other Groups).
+
+<Note>
+  All group endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## List groups
+
+`GET /v2/doss_groups`
+
+Returns all groups categorised into groups the user has joined and groups they have not yet joined.
+
+### Response
+
+<ResponseField name="mygroups" type="object[]">
+  Array of groups the authenticated user is currently a member of.
+  <Expandable title="group properties">
+    <ResponseField name="id" type="integer">
+      The group's numeric ID. Used as the path parameter for `leave_group`.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      The group's display name.
+    </ResponseField>
+    <ResponseField name="created_by" type="string">
+      The name of the user who created the group.
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when the group was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="othergroups" type="object[]">
+  Array of groups the authenticated user has not yet joined.
+  <Expandable title="group properties">
+    <ResponseField name="id" type="integer">
+      The group's numeric ID.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      The group's display name.
+    </ResponseField>
+    <ResponseField name="created_by" type="string">
+      The name of the user who created the group.
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp when the group was created.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/doss_groups \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Join a group
+
+`POST /v2/join_group`
+
+Adds the authenticated user to a group identified by a 6-digit invite code. The code is entered on the Enter Group Code screen. On success, the groups list cache is invalidated.
+
+### Request body
+
+<ParamField body="code" type="string" required>
+  The 6-digit alphanumeric group invite code.
+</ParamField>
+
+<ParamField body="groupId" type="integer">
+  The numeric ID of the group being joined. Passed from the group list.
+</ParamField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/join_group \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"code": "ABC123", "groupId": 7}'
+```
+
+---
+
+## Leave a group
+
+`GET /v2/leave_group/:id`
+
+Removes the authenticated user from the specified group. The user is prompted with a confirmation modal before this endpoint is called. On success, the groups list is refreshed.
+
+<Note>
+  Despite being a delete-like operation, this endpoint uses the `GET` method as implemented in the current client.
+</Note>
+
+### Path parameters
+
+<ParamField path="id" type="integer" required>
+  The numeric ID of the group to leave.
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  A human-readable success message confirming the user has left the group.
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/leave_group/7 \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```

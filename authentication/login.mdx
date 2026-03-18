@@ -1,0 +1,144 @@
+---
+title: "Login"
+description: "How returning users authenticate with DOSS"
+---
+
+Returning users authenticate with their phone number and 4-digit PIN. The login flow is intentionally short: two screens after the entry point.
+
+## Entry point
+
+**Screen:** `AuthIntro` (`src/screens/Authentication/Login/AuthIntro.jsx`)
+
+`AUTH_INTRO` is the `initialRouteName` of `UnAuthStack` and is the first screen any unauthenticated user sees. It presents two actions:
+
+| Button | Action |
+|---|---|
+| **Login** | Navigates to `LOGIN` (the phone number input screen) |
+| **Start KYC** | Navigates to `EMAIL_INPUT` (the start of the registration flow) |
+
+## Login flow
+
+<Steps>
+  <Step title="Enter phone number">
+    **Screen:** `LoginInput` (`src/screens/Authentication/Login/LoginInput.jsx`)
+
+    The user selects a country dial code (defaulting to `+1868` / Trinidad and Tobago) and enters their registered phone number. The phone input enforces that the value always begins with the selected dial code.
+
+    Tapping **Next** navigates directly to `ENTER_PIN`, passing the `phone` value as a route param.
+
+    <Note>
+    No API call is made on this screen. The phone number is collected and forwarded to the PIN screen, where a single API call handles full authentication.
+    </Note>
+  </Step>
+
+  <Step title="Enter PIN">
+    **Screen:** `EnterPin` (`src/screens/Authentication/Login/EnterPin.jsx`)
+
+    The user enters their 4-digit PIN. Tapping **Confirm** sends a single login request:
+
+    ```
+    POST /v2/new-login
+    ```
+
+    ```json Request body
+    {
+      "phone": "+18681234567",
+      "password": "1234",
+      "fcm_last_login_device_token": "<fcm-token>"
+    }
+    ```
+
+    The FCM token is read from AsyncStorage (`fcm_token` key). If not yet stored, it is fetched and stored via `getAndStoreFCM()`.
+
+    <Warning>
+    The PIN field must be exactly 4 digits. Submitting with fewer digits shows the error "Code length should be 4" without making an API call.
+    </Warning>
+  </Step>
+
+  <Step title="Session established">
+    On a successful `POST /v2/new-login` response:
+
+    1. The JWT token from `data.response.token` is written to AsyncStorage under the key `token`.
+    2. `setLoggedIn(true)` is called on `useAuthStore`.
+    3. `setUser(data.response)` stores the user object in the auth store.
+    4. The navigation stack is reset to `MAIN_STACK`, routing the user into the authenticated app.
+
+    ```javascript EnterPin.jsx
+    onSuccess: async data => {
+      await storage.setData('token', data?.response?.token);
+      setLoggedIn(true);
+      setUser(data?.response);
+      navigation.reset({
+        index: 0,
+        routes: [{name: MAIN_STACK}],
+      });
+    },
+    ```
+  </Step>
+</Steps>
+
+## Token storage
+
+The JWT token is persisted in AsyncStorage using a `storage` utility (`src/store/LocalStorage/storage.js`):
+
+| Key | Value | When written |
+|---|---|---|
+| `token` | JWT string | After successful login (`EnterPin`) or after PIN confirmation during registration (`ConfirmPin`) |
+| `fcm_token` | Firebase device token string | When the FCM token is first retrieved |
+
+On app boot, `Root.jsx` reads `token` from AsyncStorage and calls `setLoggedIn(!!token)`. If the token is missing or the read fails, `loggedIn` remains `false`.
+
+## Deep link support
+
+The app registers a `doss://` URL scheme for deep links. Notifications that the user taps to open the app will trigger navigation to the notifications screen:
+
+```javascript Root.jsx
+const linking = {
+  prefixes: ['doss://'],
+  config: {
+    screens: {
+      [MAIN_STACK]: {
+        screens: {
+          [AUTHED_STACK]: {
+            screens: {
+              [DOSS_NOTIFICATIONS]: 'Notifications',
+              [ALERT_NOTIFICATIONS]: 'AlertNotifications',
+            },
+          },
+        },
+      },
+    },
+  },
+};
+```
+
+When a Firebase notification is opened (either via `onNotificationOpenedApp` or `getInitialNotification`), the app calls `Linking.openURL(deep_link.notification)` to navigate to the notifications screen.
+
+<Note>
+Deep link navigation only works when the user is already authenticated, since `DOSS_NOTIFICATIONS` and `ALERT_NOTIFICATIONS` are registered exclusively in `AuthStack`.
+</Note>
+
+## Token expiry and logout
+
+There is no automatic token refresh mechanism. If a protected API call fails due to an expired or invalid token:
+
+- The user must log in again manually.
+- Logging out (or a forced session reset) removes the `token` entry from AsyncStorage and sets `loggedIn: false` in `useAuthStore`, which causes `MainStack` to re-render the `UnAuthStack`.
+
+## Profile hydration
+
+After `loggedIn` is set to `true`, `Root.jsx` automatically fetches the user profile:
+
+```javascript Root.jsx
+const {data} = useGetMethod({
+  endpoint: endpoints.profile,   // GET /v2/profile
+  key: endpoints.profile,
+  config: { enabled: !!loggedIn },
+});
+
+useEffect(() => {
+  if (data) setUser(data);
+}, [data, setUser]);
+```
+
+This ensures `useAuthStore.user` is always up to date with the server state after every login.

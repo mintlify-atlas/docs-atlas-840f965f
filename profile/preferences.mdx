@@ -1,0 +1,147 @@
+---
+title: "Preferences"
+description: "Update your personal information"
+---
+
+The Preferences screen lets you update your name, email address, and phone number. It also provides access to your group memberships and document re-verification.
+
+Navigate here from **Profile → Preferences** (`PREFERENCES` route).
+
+## Available options
+
+<CardGroup cols={2}>
+  <Card title="Update name" icon="user" href="#update-name">
+    Change your first name and last name.
+  </Card>
+  <Card title="Update email" icon="envelope" href="#update-email">
+    Replace your current email address with a new one.
+  </Card>
+  <Card title="Update phone number" icon="phone" href="#update-phone-number">
+    Change your registered phone number.
+  </Card>
+  <Card title="Groups" icon="users" href="/features/groups">
+    View your group memberships and join or leave groups.
+  </Card>
+</CardGroup>
+
+<Note>
+  All update forms use `react-hook-form` with `zod` schema validation. Validation runs client-side before any API call is made.
+</Note>
+
+## Update name
+
+**Route:** `UPDATE_NAME`
+
+Change the first name and last name on your account.
+
+<Steps>
+  <Step title="Open Update Name">
+    Tap **Update Name** on the Preferences screen.
+  </Step>
+  <Step title="Enter your names">
+    Fill in both fields:
+
+    - **First Name** — required, auto-capitalised.
+    - **Last Name** — required, auto-capitalised.
+  </Step>
+  <Step title="Submit">
+    Tap **Update**. The app calls:
+
+    ```http
+    PUT /v2/update_name
+    ```
+
+    ```json Request body
+    {
+      "first_name": "Jane",
+      "last_name": "Smith"
+    }
+    ```
+
+    On success, the profile cache is invalidated and you are returned to the Preferences screen.
+  </Step>
+</Steps>
+
+## Update email
+
+**Route:** `UPDATE_EMAIL`
+
+Replace your registered email address.
+
+<Steps>
+  <Step title="Open Update Email">
+    Tap **Update Email** on the Preferences screen.
+  </Step>
+  <Step title="Enter email addresses">
+    Fill in both fields:
+
+    - **Old Email** — your current email address. Must be a valid email format.
+    - **New Email Address** — the email you want to switch to. Must be a valid email format.
+  </Step>
+  <Step title="Submit">
+    Tap **Update**. The app calls:
+
+    ```http
+    PUT /v2/update_email
+    ```
+
+    ```json Request body
+    {
+      "last_email": "old@example.com",
+      "new_email": "new@example.com"
+    }
+    ```
+
+    On success, the profile cache is invalidated and you are returned to the Preferences screen.
+  </Step>
+</Steps>
+
+<Warning>
+  You must supply your current email address correctly. If the old email does not match your account, the request will fail.
+</Warning>
+
+## Update phone number
+
+**Route:** `UPDATE_NUMBER`
+
+Change the phone number associated with your account.
+
+<Steps>
+  <Step title="Open Update Phone Number">
+    Tap **Update Phone Number** on the Preferences screen.
+  </Step>
+  <Step title="Enter your current number">
+    The input field is pre-populated with the country dial code (defaulting to `+1868` for Trinidad and Tobago). Tap the flag icon to open the country picker and select a different country if needed.
+
+    Type your current phone number after the prefix. The prefix is immutable — if you delete it, it is restored automatically.
+  </Step>
+  <Step title="Enter your new number">
+    Repeat the same process for your new phone number, selecting the correct country code.
+  </Step>
+  <Step title="Submit">
+    Tap **Next**. The app calls:
+
+    ```http
+    PUT /v2/update_phone
+    ```
+
+    ```json Request body
+    {
+      "old_phone": "+18681234567",
+      "new_phone": "+18687654321"
+    }
+    ```
+
+    On success, the profile cache is invalidated and you are returned to the Preferences screen.
+  </Step>
+</Steps>
+
+<Note>
+  Both fields require a non-empty phone number. Submitting with either field blank shows an "Invalid Number" error and no API call is made.
+</Note>
+
+## Groups
+
+**Route:** `GROUPS`
+
+Tap **Groups** to view and manage your DOSS group memberships. See the [Groups feature page](/features/groups) for full documentation.

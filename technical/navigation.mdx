@@ -1,0 +1,305 @@
+---
+title: "Navigation"
+description: "React Navigation structure, stacks, and deep links"
+---
+
+DOSS uses [React Navigation](https://reactnavigation.org/) with the native-stack driver for all screen transitions. The navigator tree has three levels: a root stack, conditional auth stacks, and a bottom tab bar.
+
+## Navigator tree
+
+```
+Root (NavigationContainer)
+└── Stack.Navigator
+    ├── SPLASH
+    ├── ONBOARDING
+    └── MAIN_STACK
+        └── Stack.Navigator
+            ├── AUTHED_STACK   (when loggedIn === true)
+            │   └── Stack.Navigator
+            │       ├── TAB
+            │       │   └── BottomTab.Navigator
+            │       │       ├── HOME
+            │       │       ├── TRANSACTION_HISTORY
+            │       │       ├── PROFILE
+            │       │       └── MERCHANT
+            │       ├── SCAN
+            │       ├── PAY
+            │       ├── CONFIRM_PURCHASE
+            │       ├── PAYMENT_SUCCESSFUL
+            │       ├── SCANNER_PROFILE
+            │       ├── MERCHANT
+            │       ├── IDENTITY_VERIFICATION
+            │       ├── DOSS_NOTIFICATIONS
+            │       ├── ALERT_NOTIFICATIONS
+            │       ├── PREFERENCES
+            │       ├── DOCUMENTS
+            │       ├── CUSTOMER_SUPPORT
+            │       ├── GROUPS
+            │       ├── ENTER_GROUP_PIN
+            │       ├── RESET_PIN_INPUT
+            │       ├── RESET_CONFIRM_PIN
+            │       ├── RESET_PIN_SUCCESS
+            │       ├── UPDATE_NAME
+            │       ├── UPDATE_EMAIL
+            │       ├── UPDATE_NUMBER
+            │       ├── PAYMENT_REQUESTED
+            │       ├── PAY_ENTER_PIN
+            │       ├── REQ_PAYMENT_SUCCESS
+            │       └── REQ_PAYMENT_FAIL
+            └── UNAUTHED_STACK (when loggedIn === false)
+                └── Stack.Navigator  (initialRoute: AUTH_INTRO)
+                    ├── AUTH_INTRO
+                    ├── LOGIN
+                    ├── ENTER_PIN
+                    ├── EMAIL_INPUT
+                    ├── EMAIL_VERIFY
+                    ├── EMAIL_VERIFY_SUCCESS
+                    ├── NUMBER_INPUT
+                    ├── NUMBER_VERIFY
+                    ├── NUMBER_VERIFY_SUCCESS
+                    ├── EMAIL_NUMBER_VERIFY_SUCCESS
+                    ├── CREATE_PIN_INPUT
+                    ├── CONFIRM_PIN
+                    ├── CREATE_PIN_SUCCESS
+                    └── SIGN_UP_SUCCESS
+```
+
+## Root navigator
+
+`src/navigation/Root/Root.jsx` is the application entry point for navigation. On mount it reads the `token` key from AsyncStorage to decide the initial auth state, then renders the appropriate stack.
+
+```jsx
+const Root = () => {
+  const [initialLoading, setInitalLoading] = useState(false);
+  const {setLoggedIn, loggedIn, setUser} = useAuthStore();
+
+  // Fetch user profile once a token is confirmed
+  const {data, isPending} = useGetMethod({
+    endpoint: endpoints.profile,
+    key: endpoints.profile,
+    config: { enabled: !!loggedIn },
+  });
+
+  useEffect(() => {
+    setInitalLoading(true);
+    const init = async () => {
+      try {
+        const token = await storage.getData('token');
+        setLoggedIn(!!token);
+        setInitalLoading(false);
+      } catch (e) {
+        setInitalLoading(false);
+        setLoggedIn(false);
+      }
+    };
+    init();
+  }, [setLoggedIn]);
+
+  useEffect(() => {
+    if (data) setUser(data);
+  }, [data, setUser]);
+
+  if (initialLoading) return <Loader />;
+
+  return (
+    <NavigationContainer
+      ref={setNavigationRef}
+      fallback={<ActivityIndicator animating />}
+      linking={linking}>
+      <Stack.Navigator screenOptions={screenOptions}>
+        <Stack.Screen name={SPLASH} component={Splash} />
+        <Stack.Screen name={ONBOARDING} component={Onboarding} />
+        <Stack.Screen name={MAIN_STACK} component={MainStack} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+```
+
+## Main stack — auth gate
+
+`MainStack` renders either `AuthStack` or `UnAuthStack` depending on the `loggedIn` value from `useAuthStore`. React Navigation handles the transition automatically when the store value changes.
+
+```jsx
+const MainStack = () => {
+  const {loggedIn} = useAuthStore();
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      {loggedIn ? (
+        <Stack.Screen name={AUTHED_STACK} component={AuthStack} />
+      ) : (
+        <Stack.Screen name={UNAUTHED_STACK} component={UnAuthStack} />
+      )}
+    </Stack.Navigator>
+  );
+};
+```
+
+<Note>
+Swapping the single screen inside `MainStack` is the entire auth-gate mechanism. No explicit `reset` call is needed — React Navigation replaces the stack automatically.
+</Note>
+
+## Unauthenticated stack
+
+All registration and login screens. The initial route is `AUTH_INTRO`.
+
+| Route constant | Screen component | Purpose |
+|---|---|---|
+| `AUTH_INTRO` | `AuthIntro` | Welcome / choose login or sign-up |
+| `LOGIN` | `LoginInput` | Enter email/phone |
+| `ENTER_PIN` | `EnterPin` | Enter PIN for login |
+| `EMAIL_INPUT` | `EmailInput` | Sign-up: enter email |
+| `EMAIL_VERIFY` | `EmailVerify` | Sign-up: verify email OTP |
+| `EMAIL_VERIFY_SUCCESS` | `EmailVerifySuccess` | Email verified confirmation |
+| `NUMBER_INPUT` | `NumberInput` | Sign-up: enter phone number |
+| `NUMBER_VERIFY` | `NumberVerify` | Sign-up: verify phone OTP |
+| `NUMBER_VERIFY_SUCCESS` | `NumberVerifySuccess` | Phone verified confirmation |
+| `EMAIL_NUMBER_VERIFY_SUCCESS` | `EmailNumberVerifySuccess` | Both email and phone verified |
+| `CREATE_PIN_INPUT` | `CreatePinInput` | Set new PIN |
+| `CONFIRM_PIN` | `ConfirmPin` | Confirm PIN |
+| `CREATE_PIN_SUCCESS` | `CreatePinSuccess` | PIN created |
+| `SIGN_UP_SUCCESS` | `SignUpSuccess` | Account created |
+
+## Authenticated stack
+
+All screens available after login. The initial route is `TAB`.
+
+| Route constant | Screen component | Purpose |
+|---|---|---|
+| `TAB` | `TabStack` | Bottom tab navigator |
+| `SCAN` | `Scan` | QR code scanner |
+| `PAY` | `Pay` | Payment amount entry |
+| `CONFIRM_PURCHASE` | `ConfirmPurchase` | Review before paying |
+| `PAYMENT_SUCCESSFUL` | `PaymentSuccess` | Payment confirmed |
+| `SCANNER_PROFILE` | `ScannedProfile` | Merchant profile from QR |
+| `MERCHANT` | `Merchant` | Merchant detail |
+| `IDENTITY_VERIFICATION` | `IdentityVerification` | KYC / identity upload |
+| `DOSS_NOTIFICATIONS` | `DossNotifications` | In-app DOSS notifications |
+| `ALERT_NOTIFICATIONS` | `AlertNotifications` | Alert / payment-request notifications |
+| `PREFERENCES` | `Preferences` | Account preferences |
+| `DOCUMENTS` | `Documents` | Account security documents |
+| `CUSTOMER_SUPPORT` | `CustomerSupport` | Support chat |
+| `GROUPS` | `Groups` | Payment groups |
+| `ENTER_GROUP_PIN` | `EnterGroupPin` | PIN for group payment |
+| `RESET_PIN_INPUT` | `ResetPinInput` | Enter new PIN |
+| `RESET_CONFIRM_PIN` | `ResetConfirmPin` | Confirm new PIN |
+| `RESET_PIN_SUCCESS` | `ResetPinSuccess` | PIN reset confirmed |
+| `UPDATE_NAME` | `UpdateName` | Change display name |
+| `UPDATE_EMAIL` | `UpdateEmail` | Change email |
+| `UPDATE_NUMBER` | `UpdateNumber` | Change phone number |
+| `PAYMENT_REQUESTED` | `PaymentRequested` | Incoming payment request |
+| `PAY_ENTER_PIN` | `PayEnterPin` | PIN confirmation for payment |
+| `REQ_PAYMENT_SUCCESS` | `ReqPaymentSuccess` | Request paid successfully |
+| `REQ_PAYMENT_FAIL` | `RequestedPaymentFailed` | Request payment failed |
+
+## Tab navigator
+
+`src/navigation/Tab/Tab.jsx` renders a custom bottom bar. The first three tabs (`HOME`, `TRANSACTION_HISTORY`, `PROFILE`) sit inside a rounded pill-shaped container. The fourth tab (`MERCHANT`) is a standalone icon button outside the pill.
+
+```jsx
+const TabStack = () => (
+  <BottomTab.Navigator
+    tabBar={props => <CustomTabBar {...props} />}
+    initialRouteName={HOME}>
+    <BottomTab.Screen name={HOME}               component={Home}               options={{tabBarLabel: 'Home'}} />
+    <BottomTab.Screen name={TRANSACTION_HISTORY} component={TransactionHistory} options={{tabBarLabel: 'History'}} />
+    <BottomTab.Screen name={PROFILE}             component={Profile}            options={{tabBarLabel: 'Profile'}} />
+    <BottomTab.Screen name={MERCHANT}            component={Merchant} />
+  </BottomTab.Navigator>
+);
+```
+
+### Tab icons
+
+| Tab | Inactive icon | Active icon |
+|---|---|---|
+| `HOME` | `TabHome` | `TabHomeFocused` |
+| `TRANSACTION_HISTORY` | `TabTransaction` | `TabTransactionFocused` |
+| `PROFILE` | `TabProfile` | `TabProfileFocused` |
+| `MERCHANT` | `TabMap` | `TabMap` (always) |
+
+The active tab shows a white pill behind the icon and its label. Inactive tabs show only the icon.
+
+## Programmatic navigation
+
+`src/utils/helpers/navigate.js` holds a module-level ref to the navigation container, enabling imperative navigation from outside React components (e.g. from interceptors or notification handlers).
+
+```javascript
+let navigationRef;
+
+export const setNavigationRef = ref => {
+  navigationRef = ref;
+};
+
+// Hard reset — replaces the whole stack history
+export const navigate = (routeName, params) => {
+  navigationRef?.reset({
+    index: 1,
+    routes: [{ name: routeName }],
+  });
+};
+
+// Standard push navigation
+export const navigateRoute = async (routeName, params) => {
+  await navigationRef?.navigate(routeName, { ...params });
+};
+```
+
+The ref is attached in `Root.jsx`:
+
+```jsx
+<NavigationContainer ref={setNavigationRef} ...>
+```
+
+## Deep linking
+
+The `linking` config passed to `NavigationContainer` maps `doss://` URLs to screen paths.
+
+```javascript
+const config = {
+  screens: {
+    [MAIN_STACK]: {
+      screens: {
+        [AUTHED_STACK]: {
+          screens: {
+            [DOSS_NOTIFICATIONS]: 'Notifications',
+            [ALERT_NOTIFICATIONS]: 'AlertNotifications',
+          },
+        },
+      },
+    },
+  },
+};
+
+const linking = {
+  prefixes: ['doss://'],
+  config,
+};
+```
+
+| Deep link URL | Screen |
+|---|---|
+| `doss://Notifications` | `DossNotifications` |
+| `doss://AlertNotifications` | `AlertNotifications` |
+
+## FCM notification navigation
+
+When a Firebase Cloud Messaging notification opens the app, the app navigates to the notifications screen via a deep link. This is handled at module level in `Root.jsx` so it runs before any component mounts:
+
+```javascript
+// App opened from a notification while running in background
+messaging().onNotificationOpenedApp(rm => {
+  Linking.openURL(deep_link.notification);
+});
+
+// App opened from a notification while fully quit
+messaging()
+  .getInitialNotification()
+  .then(remoteMessage => {
+    if (remoteMessage) {
+      Linking.openURL(deep_link.notification);
+    }
+  });
+```
+
+The `deep_link.notification` constant resolves to the `doss://AlertNotifications` (or `doss://Notifications`) URL defined in `~/utils/constants/country-picker-data/enums`.

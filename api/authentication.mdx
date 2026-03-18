@@ -1,0 +1,272 @@
+---
+title: "Authentication"
+description: "Endpoints for registering and logging in to the DOSS User App"
+---
+
+Authentication in DOSS follows a two-stage flow: verify an email address, verify a phone number, set a 4-digit PIN, then confirm it. Returning users log in directly with their phone number and PIN.
+
+<Note>
+  Registration and OTP endpoints do not require an `Authorization` header. All other endpoints require a Bearer token.
+</Note>
+
+---
+
+## Send email OTP
+
+`POST /v2/email_send_otp`
+
+Sends a one-time verification code to the provided email address. On success, the response includes the user object with `email`, `uuid`, and `verification_code` used in the next step.
+
+### Request body
+
+<ParamField body="email" type="string" required>
+  The user's email address. Must be a valid email format.
+</ParamField>
+
+### Response
+
+<ResponseField name="response" type="object">
+  <Expandable title="properties">
+    <ResponseField name="user" type="object">
+      <Expandable title="properties">
+        <ResponseField name="email" type="string">
+          The email address the OTP was sent to.
+        </ResponseField>
+        <ResponseField name="uuid" type="string">
+          The user's unique identifier, used in subsequent registration steps.
+        </ResponseField>
+        <ResponseField name="verification_code" type="string">
+          The verification code (included in development environments for debugging).
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/email_send_otp \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+```
+
+---
+
+## Verify email OTP
+
+`POST /v2/email_verify_otp`
+
+Verifies the 4-digit code sent to the user's email address.
+
+### Request body
+
+<ParamField body="email" type="string" required>
+  The email address the OTP was sent to.
+</ParamField>
+
+<ParamField body="verification_code" type="string" required>
+  The 4-digit verification code received by the user.
+</ParamField>
+
+### Response
+
+<ResponseField name="email_verify_at" type="string">
+  Timestamp at which the email was verified.
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/email_verify_otp \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "verification_code": "1234"}'
+```
+
+---
+
+## Send phone OTP
+
+`POST /v2/phone_send_otp`
+
+Sends a one-time verification code to the provided phone number.
+
+### Request body
+
+<ParamField body="email" type="string" required>
+  The user's email address, passed to associate the phone with the existing registration session.
+</ParamField>
+
+<ParamField body="phone" type="string" required>
+  The user's phone number, including the country dial code (e.g., `+18681234567`).
+</ParamField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/phone_send_otp \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "phone": "+18681234567"}'
+```
+
+---
+
+## Verify phone OTP
+
+`POST /v2/phone_verify_otp`
+
+Verifies the 4-digit code sent to the user's phone number.
+
+### Request body
+
+<ParamField body="uuid" type="string" required>
+  The user's UUID, obtained from the `email_send_otp` response.
+</ParamField>
+
+<ParamField body="verification_code" type="string" required>
+  The 4-digit verification code received by the user.
+</ParamField>
+
+### Response
+
+<ResponseField name="phone_verify_at" type="string">
+  Timestamp at which the phone number was verified.
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/phone_verify_otp \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"uuid": "abc-123", "verification_code": "5678"}'
+```
+
+---
+
+## Set PIN
+
+`POST /v2/set_pin`
+
+Sets the user's 4-digit PIN during the registration flow.
+
+### Request body
+
+<ParamField body="uuid" type="string" required>
+  The user's UUID.
+</ParamField>
+
+<ParamField body="pin" type="string" required>
+  A 4-digit numeric PIN chosen by the user.
+</ParamField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/set_pin \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"uuid": "abc-123", "pin": "4242"}'
+```
+
+---
+
+## Confirm PIN
+
+`POST /v2/confirm_pin`
+
+Confirms the PIN set in the previous step, completing the registration process. Returns an authentication token on success.
+
+### Request body
+
+<ParamField body="uuid" type="string" required>
+  The user's UUID.
+</ParamField>
+
+<ParamField body="confirm_pin" type="string" required>
+  The same 4-digit PIN entered in the `set_pin` step.
+</ParamField>
+
+<ParamField body="fcm_last_login_device_token" type="string">
+  Firebase Cloud Messaging token for the device, used to send push notifications.
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="object">
+  <Expandable title="properties">
+    <ResponseField name="user" type="object">
+      <Expandable title="properties">
+        <ResponseField name="token" type="string">
+          Bearer token to be stored and used for all subsequent authenticated requests.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="pin_verify_at" type="string">
+      Timestamp at which the PIN was confirmed.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/confirm_pin \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"uuid": "abc-123", "confirm_pin": "4242", "fcm_last_login_device_token": "fcm-token"}'
+```
+
+---
+
+## Log in
+
+`POST /v2/new-login`
+
+Authenticates a returning user with their phone number and PIN. Returns a Bearer token on success.
+
+### Request body
+
+<ParamField body="phone" type="string" required>
+  The user's phone number, including the country dial code.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's 4-digit PIN.
+</ParamField>
+
+<ParamField body="fcm_last_login_device_token" type="string">
+  Firebase Cloud Messaging token for the device.
+</ParamField>
+
+### Response
+
+<ResponseField name="response" type="object">
+  <Expandable title="properties">
+    <ResponseField name="token" type="string">
+      Bearer token for authenticated requests.
+    </ResponseField>
+    <ResponseField name="id" type="integer">
+      The user's numeric ID.
+    </ResponseField>
+    <ResponseField name="first_name" type="string">
+      The user's first name.
+    </ResponseField>
+    <ResponseField name="last_name" type="string">
+      The user's last name.
+    </ResponseField>
+    <ResponseField name="email" type="string">
+      The user's email address.
+    </ResponseField>
+    <ResponseField name="phone" type="string">
+      The user's phone number.
+    </ResponseField>
+    <ResponseField name="image" type="string">
+      URL of the user's profile photo.
+    </ResponseField>
+    <ResponseField name="uuid" type="string">
+      The user's UUID, used for identity QR codes.
+    </ResponseField>
+    <ResponseField name="message" type="string">
+      Error message returned on failed login attempts.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl -X POST https://dossapp.com/api/v2/new-login \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "+18681234567", "password": "4242", "fcm_last_login_device_token": "fcm-token"}'
+```

@@ -1,0 +1,133 @@
+---
+title: "Transactions"
+description: "Retrieve transaction history and dashboard summary data"
+---
+
+<Note>
+  All transaction endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## Get transaction history
+
+`GET /v2/transaction_history`
+
+Returns a paginated list of the authenticated user's transactions. Supports server-side search and infinite scroll pagination. The client uses cursor-based pagination, loading the next page when the user scrolls to the bottom of the list.
+
+Transactions with a `null` `cart` field are filtered out in the UI.
+
+### Query parameters
+
+<ParamField query="page" type="integer" default="1">
+  The page number to fetch.
+</ParamField>
+
+<ParamField query="search" type="string">
+  Optional search term to filter transactions by merchant name or other fields.
+</ParamField>
+
+### Response
+
+<ResponseField name="transactions" type="object">
+  <Expandable title="properties">
+    <ResponseField name="data" type="object[]">
+      Array of transaction objects.
+      <Expandable title="transaction properties">
+        <ResponseField name="uuid" type="string">
+          The transaction's unique identifier. Used as `txn_uid` in payment request actions.
+        </ResponseField>
+        <ResponseField name="status" type="string">
+          Transaction status. Common values: `"Completed"`, `"Awaiting"`, `"Failed"`.
+          Transactions with status `"Awaiting"` surface as pending payment requests.
+        </ResponseField>
+        <ResponseField name="subtotal" type="string">
+          The transaction amount as a decimal string.
+        </ResponseField>
+        <ResponseField name="cart" type="object | null">
+          Cart details for the transaction. `null` for transactions that should be hidden from the history list.
+        </ResponseField>
+        <ResponseField name="merchant" type="object">
+          <Expandable title="properties">
+            <ResponseField name="business_name" type="string">
+              The merchant's registered business name.
+            </ResponseField>
+            <ResponseField name="picture" type="string">
+              URL of the merchant's logo.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="cashier" type="object">
+          <Expandable title="properties">
+            <ResponseField name="first_name" type="string">
+              The cashier's first name.
+            </ResponseField>
+            <ResponseField name="last_name" type="string">
+              The cashier's last name.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="created_at" type="string">
+          ISO 8601 timestamp when the transaction was created. Used to group transactions by date.
+        </ResponseField>
+        <ResponseField name="updated_at" type="string">
+          ISO 8601 timestamp when the transaction was last updated.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="current_page" type="integer">
+      The current page number.
+    </ResponseField>
+    <ResponseField name="last_page" type="integer">
+      The total number of pages.
+    </ResponseField>
+    <ResponseField name="per_page" type="integer">
+      The number of items per page.
+    </ResponseField>
+    <ResponseField name="total" type="integer">
+      The total number of transactions.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl "https://dossapp.com/api/v2/transaction_history?page=1&search=" \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Get dashboard
+
+`GET /v2/doss_dashboard`
+
+Returns the home screen summary, including wallet balance and a recent transaction list. This endpoint is fetched on every home screen mount and refreshed on pull-to-refresh.
+
+### Response
+
+<ResponseField name="wallet_dashboard" type="object">
+  <Expandable title="properties">
+    <ResponseField name="balance" type="string">
+      The user's current wallet balance as a decimal string.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="wallets" type="object[]">
+  Array of wallet objects associated with the account.
+</ResponseField>
+
+<ResponseField name="transactions" type="object">
+  <Expandable title="properties">
+    <ResponseField name="data" type="object[]">
+      Recent transactions. Same shape as the transaction objects returned by `GET /v2/transaction_history`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/doss_dashboard \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```

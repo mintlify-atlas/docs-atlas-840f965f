@@ -1,0 +1,222 @@
+---
+title: "PIN Management"
+description: "Creating, entering, and resetting your security PIN"
+---
+
+The PIN is a 4-digit code that acts as the primary security credential in DOSS. It is required to log in and to authorise payment actions. There is no biometric fallback — all sensitive operations go through the PIN.
+
+## Overview
+
+<CardGroup cols={3}>
+  <Card title="Creating a PIN" icon="lock" href="#creating-a-pin">
+    Set during the registration flow after email and phone verification.
+  </Card>
+  <Card title="Entering a PIN" icon="keyboard" href="#entering-a-pin-at-login">
+    Required on every login to complete authentication.
+  </Card>
+  <Card title="Resetting a PIN" icon="rotate" href="#resetting-a-pin">
+    Available from the authenticated profile area when the user needs to change their PIN.
+  </Card>
+</CardGroup>
+
+## Creating a PIN
+
+PIN creation is the final step of registration, after both email and phone have been verified.
+
+<Steps>
+  <Step title="Enter new PIN">
+    **Screen:** `CreatePinInput` (`src/screens/Authentication/CreatePin/CreatePinInput.jsx`)
+    **Route:** `CREATE_PIN_INPUT`
+
+    The user enters a 4-digit PIN using the `OTPInput` component.
+
+    ```
+    POST /v2/set_pin
+    ```
+
+    ```json Request body
+    {
+      "uuid": "<user-uuid>",
+      "pin": "1234"
+    }
+    ```
+
+    On success, the app navigates to `CONFIRM_PIN`, forwarding `uuid` and the entered `pin`.
+  </Step>
+
+  <Step title="Confirm PIN">
+    **Screen:** `ConfirmPin` (`src/screens/Authentication/CreatePin/ConfirmPin.jsx`)
+    **Route:** `CONFIRM_PIN`
+
+    The user re-enters the same PIN to confirm it.
+
+    ```
+    POST /v2/confirm_pin
+    ```
+
+    ```json Request body
+    {
+      "uuid": "<user-uuid>",
+      "confirm_pin": "1234",
+      "fcm_last_login_device_token": "<fcm-token>"
+    }
+    ```
+
+    On success, the JWT token from `data.success.user.token` is written to AsyncStorage and the user object is stored in `useAuthStore`.
+  </Step>
+
+  <Step title="PIN created">
+    **Screen:** `CreatePinSuccess` (`src/screens/Authentication/CreatePin/CreatePinSuccess.jsx`)
+    **Route:** `CREATE_PIN_SUCCESS`
+
+    Displays "Pin Set Successfully!" with a timestamp. Tapping **Done** calls `setLoggedIn(true)` and resets the navigation stack to `MAIN_STACK`.
+  </Step>
+</Steps>
+
+## Entering a PIN at login
+
+**Screen:** `EnterPin` (`src/screens/Authentication/Login/EnterPin.jsx`)
+**Route:** `ENTER_PIN`
+
+After supplying their phone number on the `LOGIN` screen, the user enters their PIN here. Both values are sent together in a single request:
+
+```
+POST /v2/new-login
+```
+
+```json Request body
+{
+  "phone": "+18681234567",
+  "password": "1234",
+  "fcm_last_login_device_token": "<fcm-token>"
+}
+```
+
+<Note>
+The field is named `password` in the login request body, but it carries the same 4-digit PIN value that was set during registration.
+</Note>
+
+A successful response stores the token in AsyncStorage and sets `loggedIn: true` in `useAuthStore`.
+
+## Resetting a PIN
+
+PIN reset is available inside the authenticated app (from the Profile area). The flow lives in `src/screens/Profile/RestPin/`.
+
+<Steps>
+  <Step title="Enter new PIN">
+    **Screen:** `ResetPinInput` (`src/screens/Profile/RestPin/ResetPinInput.jsx`)
+    **Route:** `RESET_PIN_INPUT`
+
+    The user enters a new 4-digit PIN.
+
+    ```
+    POST /v2/resetPin
+    ```
+
+    ```json Request body
+    {
+      "new_pin": "5678"
+    }
+    ```
+
+    On success, the app navigates to `RESET_CONFIRM_PIN`, passing `new_pin` as a route param.
+  </Step>
+
+  <Step title="Confirm new PIN">
+    **Screen:** `ResetConfirmPin` (`src/screens/Profile/RestPin/ResetConfirmPin.jsx`)
+    **Route:** `RESET_CONFIRM_PIN`
+
+    The user re-enters the new PIN. Client-side validation checks that:
+
+    1. The entry is exactly 4 digits.
+    2. The value matches `new_pin` from the previous step.
+
+    ```
+    POST /v2/confirmPin
+    ```
+
+    ```json Request body
+    {
+      "confirm_pin": "5678"
+    }
+    ```
+
+    The server response must include `message: "Pin reset successful!"` for the reset to be considered successful. Any other response body triggers an error toast.
+
+    <Warning>
+    If the entered PIN does not match the PIN from `RESET_PIN_INPUT`, the error "Pin is not matching with new pin" is shown locally and no API call is made.
+    </Warning>
+  </Step>
+
+  <Step title="Reset complete">
+    **Screen:** `ResetPinSuccess` (`src/screens/Profile/RestPin/ResetPinSuccess.jsx`)
+    **Route:** `RESET_PIN_SUCCESS`
+
+    Displays "Pin Set Successfully!" with a timestamp. Tapping **Done** navigates back to the `PROFILE` screen.
+  </Step>
+</Steps>
+
+## PIN for payment confirmation
+
+**Screen:** `PayEnterPin` (`src/screens/Alert/PayEnterPin/index.jsx`)
+**Route:** `PAY_ENTER_PIN`
+
+When a user needs to approve or reject an incoming payment request, they must re-enter their PIN before the action is submitted.
+
+```
+POST /v2/confirm_payment_with_pin
+```
+
+<Note>
+The `PAY_ENTER_PIN` screen actually calls `POST /v2/payment-request-action` (not `confirm_payment_with_pin` directly). The `confirm_payment_with_pin` endpoint is used for scan-and-pay flows.
+</Note>
+
+```json Request body
+{
+  "confirm_pin": "1234",
+  "txn_id": "<transaction-uid>",
+  "type": "approve"  // or "reject"
+}
+```
+
+On success:
+- If `type` is `"approve"`, the app navigates to `REQ_PAYMENT_SUCCESS`.
+- If `type` is `"reject"`, the app navigates to `REQ_PAYMENT_FAIL`.
+
+Both the `doss_dashboard` and `transaction_history` query caches are invalidated after a successful action.
+
+## Group PIN
+
+**Screen:** `EnterGroupPin` (`src/screens/Profile/Preferrences/Group/EnterGroupPin/index.jsx`)
+**Route:** `ENTER_GROUP_PIN`
+
+Joining a DOSS group requires a 6-digit invite code (not the user's personal 4-digit PIN).
+
+```
+POST /v2/join_group
+```
+
+```json Request body
+{
+  "code": "123456",
+  "groupId": "<group-id>"
+}
+```
+
+On success, the `doss_groups` query cache is invalidated and the app navigates back to the previous screen.
+
+<Tip>
+The `EnterGroupPin` screen uses `pinLength={6}` on the `OTPInput` component, making it visually distinct from the standard 4-digit PIN screens.
+</Tip>
+
+## PIN validation rules
+
+| Context | Expected length | Validation |
+|---|---|---|
+| Create PIN (`set_pin`) | 4 digits | Client-side length check before API call |
+| Confirm PIN (`confirm_pin`) | 4 digits | Client-side length check before API call |
+| Login PIN (`new-login`) | 4 digits | Client-side length check before API call |
+| Reset PIN (`resetPin`) | 4 digits | Client-side length check before API call |
+| Confirm reset PIN (`confirmPin`) | 4 digits | Client-side length check + must match `new_pin` |
+| Payment PIN (`payment-request-action`) | 4 digits | Client-side length check before API call |
+| Group invite code (`join_group`) | 6 digits | Client-side length check before API call |

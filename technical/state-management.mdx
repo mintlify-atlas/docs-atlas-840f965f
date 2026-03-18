@@ -1,0 +1,197 @@
+---
+title: "State Management"
+description: "How DOSS manages application state with Zustand and TanStack Query"
+---
+
+DOSS separates state into three distinct layers:
+
+- **Client state** — Zustand stores for auth and wallet data
+- **Persistent state** — AsyncStorage for tokens that survive app restarts
+- **Server state** — TanStack Query for all API-sourced data
+- **Form state** — React Hook Form + Zod for all user input flows
+
+## Zustand stores
+
+### `useAuthStore`
+
+`src/store/StateManager/useAuthStore.js`
+
+Holds the current authentication status and the authenticated user's profile data.
+
+```javascript
+import { create } from 'zustand';
+
+export const useAuthStore = create(set => ({
+  loggedIn: false,
+  setLoggedIn: loggedIn => set({ loggedIn }),
+  user: {},
+  setUser: userInfo => set({ user: userInfo }),
+}));
+```
+
+| State | Type | Description |
+|---|---|---|
+| `loggedIn` | `boolean` | Whether a valid token was found on startup |
+| `setLoggedIn` | `(bool) => void` | Set after token check in `Root.jsx` |
+| `user` | `object` | Profile data returned from the `/profile` endpoint |
+| `setUser` | `(object) => void` | Called when the profile query resolves |
+
+**Auth gate pattern**: `Root.jsx` reads from AsyncStorage on mount. If a token exists it calls `setLoggedIn(true)`, which causes `MainStack` to render `AUTHED_STACK` instead of `UNAUTHED_STACK`.
+
+### `useWallet`
+
+`src/store/StateManager/useWallert.js`
+
+Holds the wallet data fetched from the API.
+
+```javascript
+import { create } from 'zustand';
+
+export const useWallet = create(set => ({
+  wallet: {},
+  setWallet: wallet => set({ wallet }),
+}));
+```
+
+| State | Type | Description |
+|---|---|---|
+| `wallet` | `object` | Wallet data from the API |
+| `setWallet` | `(object) => void` | Update wallet data |
+
+## AsyncStorage — persistent storage
+
+`src/store/LocalStorage/storage.js`
+
+A unified wrapper around `@react-native-async-storage/async-storage`. All values are JSON-serialised on write and deserialised on read.
+
+```javascript
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const storage = {
+  getData: async key => {
+    const data = await AsyncStorage.getItem(key);
+    return JSON.parse(data);
+  },
+  setData: async (key, value) => {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  },
+  clearData: async key => {
+    await AsyncStorage.removeItem(key);
+  },
+  setObjectData: async (key, newObject) => {
+    // Reads existing object, merges newObject into it, then writes back
+    const existingData = await AsyncStorage.getItem(key);
+    const dataToUpdate = existingData ? JSON.parse(existingData) : {};
+    await AsyncStorage.setItem(key, JSON.stringify({ ...dataToUpdate, ...newObject }));
+  },
+  // ... user booking data helpers
+};
+```
+
+### Keys in use
+
+| Key | Written by | Read by | Description |
+|---|---|---|
+| `token` | Login / sign-up flow | `Root.jsx`, Axios interceptor | Bearer token for API auth |
+| `fcm_token` | FCM registration | Push notification handler | Firebase Cloud Messaging device token |
+
+### Read / write patterns
+
+```javascript
+// Write token after login
+await storage.setData('token', accessToken);
+
+// Read token on app start (Root.jsx)
+const token = await storage.getData('token');
+setLoggedIn(!!token);
+
+// Clear token on logout
+await storage.clearData('token');
+
+// Merge new fields into an existing stored object
+await storage.setObjectData('preferences', { theme: 'dark' });
+```
+
+## TanStack Query — server state
+
+All API data is managed by TanStack Query v5. The app never stores API responses in Zustand; instead, components call the custom hooks below and rely on the query cache.
+
+### Cache key convention
+
+Query keys are the endpoint path string. For example:
+
+```javascript
+const { data } = useGetMethod({
+  endpoint: endpoints.profile,   // e.g. '/user/profile'
+  key: endpoints.profile,        // same string used as cache key
+});
+```
+
+### Query invalidation
+
+After a mutation succeeds, call `queryClient.invalidateQueries` with the affected key to trigger a refetch:
+
+```javascript
+import { useQueryClient } from '@tanstack/react-query';
+import endpoints from '~/utils/enums/endpoints';
+
+const queryClient = useQueryClient();
+
+const { mutate } = usePostMethod({ endpoint: endpoints.updateProfile });
+
+mutate(formData, {
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: [endpoints.profile] });
+  },
+});
+```
+
+### Custom hooks
+
+See [API Integration](/technical/api-integration) for full signatures and implementation details.
+
+| Hook | TanStack primitive | Use case |
+|---|---|---|
+| `useGetMethod` | `useQuery` | Fetch data |
+| `usePostMethod` | `useMutation` | Create resources |
+| `usePutMethod` | `useMutation` | Update resources |
+| `useDeleteMethod` | `useMutation` | Delete resources |
+| `useUploadImage` | `useMutation` | Upload a single image |
+| `useUploadFiles` | `useMutation` | Upload multiple files |
+| `useOnScrollMethod` | `useInfiniteQuery` | Paginated lists |
+
+## React Hook Form + Zod
+
+Every form in the app uses React Hook Form with a Zod schema resolver. Forms do **not** store state in Zustand or component state — all field values, errors, and submission state live inside the form instance.
+
+```javascript
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const schema = z.object({
+  email: z.string().email('Invalid email address'),
+  pin:   z.string().length(4, 'PIN must be 4 digits'),
+});
+
+const { control, handleSubmit, formState: { errors } } = useForm({
+  resolver: zodResolver(schema),
+  defaultValues: { email: '', pin: '' },
+});
+```
+
+Fields are rendered with the `ControlInput` common component, which wraps `Controller` from React Hook Form:
+
+```javascript
+// src/components/common/ControlInput.jsx
+<ControlInput
+  control={control}
+  name="email"
+  placeholder="Email address"
+  error={errors.email?.message}
+/>
+```
+
+<Tip>
+Zod schemas serve as the single source of truth for both runtime validation and TypeScript types via `z.infer<typeof schema>`. Define schemas alongside the screen that uses them.
+</Tip>
