@@ -59,9 +59,9 @@ List endpoints support cursor-based pagination. Pass a `page` query parameter to
 | | `/v2/confirm_pin` | POST | Confirm PIN and complete registration |
 | | `/v2/new-login` | POST | Log in with phone and PIN |
 | **Profile** | `/v2/profile` | GET | Fetch authenticated user profile |
-| | `/v2/update_name` | PUT | Update first and last name |
-| | `/v2/update_email` | PUT | Update email address |
-| | `/v2/update_phone` | PUT | Update phone number |
+| | `/v2/update_name` | POST | Update first and last name |
+| | `/v2/update_email` | POST | Update email address |
+| | `/v2/update_phone` | POST | Update phone number |
 | | `/v2/update_image` | POST | Upload profile photo |
 | **Payments** | `/v2/scan-link` | POST | Resolve a scanned QR code |
 | | `/v2/confirm_payment_with_pin` | POST | Confirm a payment with PIN |
@@ -78,3 +78,4 @@ List endpoints support cursor-based pagination. Pass a `page` query parameter to
 | **Groups** | `/v2/doss_groups` | GET | List groups |
 | | `/v2/join_group` | POST | Join a group by code |
 | | `/v2/leave_group/:id` | GET | Leave a group |
+| **Merchants** | `/v2/merchant_list` | GET | Paginated list of merchant locations |

@@ -88,12 +88,8 @@ Each group card displays:
     Tap **Yes** to confirm. The app calls:
 
     ```http
-    DELETE /v2/leave_group/:id
+    GET /v2/leave_group/:id
     ```
-
-    <Note>
-      The implementation uses a `GET` request to the `leave_group/:id` endpoint. Consult your backend team if you need to change this to a `DELETE` method.
-    </Note>
 
     On success, a success toast is shown and the groups list is refreshed. The group moves from **My Groups** back to **Other Groups**.
   </Step>

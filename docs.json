@@ -49,7 +49,8 @@
               "features/transaction-history",
               "features/notifications",
               "features/identity-verification",
-              "features/groups"
+              "features/groups",
+              "features/merchant-locations"
             ]
           },
           {
@@ -85,7 +86,8 @@
               "api/transactions",
               "api/notifications",
               "api/identity",
-              "api/groups"
+              "api/groups",
+              "api/merchants"
             ]
           }
         ]

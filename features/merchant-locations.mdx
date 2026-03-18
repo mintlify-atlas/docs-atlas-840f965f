@@ -1,0 +1,73 @@
+---
+title: "Merchant Locations"
+description: "Find nearby DOSS-enabled merchants sorted by distance"
+---
+
+The Merchant Locations screen is the second tab in the bottom navigation bar. It lets you browse all registered DOSS merchants, search by name, and get directions via Google Maps.
+
+## How it works
+
+The screen fetches the full merchant list from `GET /v2/merchant_list` and uses your device's GPS location to calculate the distance to each merchant. Results are sorted from nearest to furthest.
+
+<Note>
+  Location permission is required to see distance information and enable sorting by proximity. If permission is denied, a prompt appears with a link to open your device's Settings.
+</Note>
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Search" icon="magnifying-glass">
+    Type in the search bar to filter merchants by business name. Filtering is case-insensitive.
+  </Card>
+  <Card title="Distance sorting" icon="location-dot">
+    Merchants are automatically sorted by distance from your current GPS location, nearest first.
+  </Card>
+  <Card title="Google Maps directions" icon="map">
+    Tap any merchant card to open Google Maps with turn-by-turn directions from your location to the merchant.
+  </Card>
+  <Card title="Pull to refresh" icon="arrows-rotate">
+    Pull down on the list to refresh the merchant data.
+  </Card>
+</CardGroup>
+
+## Merchant card
+
+Each merchant card in the list shows:
+
+| Field | Description |
+|---|---|
+| Logo | Merchant profile image |
+| Business name | The merchant's registered business name |
+| Address | The merchant's street address |
+| Distance | Distance in kilometres from your current location (e.g., `0.45 km`) |
+
+Tapping a card opens Google Maps with directions from your GPS coordinates to the merchant's latitude and longitude.
+
+## Search
+
+The search field filters the already-loaded merchant list locally — no additional API calls are made as you type.
+
+<Steps>
+  <Step title="Type a merchant name">
+    Start typing in the search bar at the top of the screen. The list updates instantly.
+  </Step>
+  <Step title="Clear the search">
+    Tap the clear (×) button to reset the search and show all merchants.
+  </Step>
+</Steps>
+
+## Location permission
+
+On Android, the app requests `ACCESS_FINE_LOCATION` at the OS level. If denied:
+
+- The merchant list still loads from the API.
+- Distance values cannot be calculated.
+- The permission warning screen is shown in place of the list, with a button to open device Settings.
+
+## Pagination
+
+The Merchant screen uses infinite scroll (`fetchNextPage`) to load additional merchants when you scroll to the bottom of the list. The list footer shows a loading indicator while the next page is being fetched.
+
+## Data source
+
+Merchant data is fetched from `GET /v2/merchant_list`. See the [Merchants API reference](/api/merchants) for the full response shape.

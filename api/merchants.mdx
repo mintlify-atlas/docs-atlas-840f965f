@@ -1,0 +1,88 @@
+---
+title: "Merchants"
+description: "List all DOSS-enabled merchant locations"
+---
+
+<Note>
+  All merchant endpoints require a valid Bearer token in the `Authorization` header.
+</Note>
+
+---
+
+## List merchants
+
+`GET /v2/merchant_list`
+
+Returns a paginated list of all DOSS-enabled merchants. The client sorts results by distance from the user's GPS location and supports infinite scroll with `fetchNextPage`.
+
+### Query parameters
+
+<ParamField query="page" type="integer">
+  The page number to fetch. Defaults to `1`.
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="object[]">
+  Array of merchant objects for the current page.
+  <Expandable title="merchant properties">
+    <ResponseField name="id" type="integer">
+      The merchant's numeric database ID.
+    </ResponseField>
+    <ResponseField name="business_name" type="string">
+      The merchant's registered business name. Used for display and search filtering.
+    </ResponseField>
+    <ResponseField name="address" type="string">
+      The merchant's street address.
+    </ResponseField>
+    <ResponseField name="logo" type="string">
+      URL of the merchant's logo image.
+    </ResponseField>
+    <ResponseField name="latitude" type="number">
+      The merchant's GPS latitude coordinate. Used to calculate distance and open Google Maps directions.
+    </ResponseField>
+    <ResponseField name="longitude" type="number">
+      The merchant's GPS longitude coordinate.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="current_page" type="integer">
+  The current page number.
+</ResponseField>
+
+<ResponseField name="last_page" type="integer">
+  The total number of pages available.
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of merchant records across all pages.
+</ResponseField>
+
+```bash
+curl https://dossapp.com/api/v2/merchant_list \
+  -H "Authorization: Bearer {token}" \
+  -H "Accept: application/json"
+```
+
+### Usage in the app
+
+The Merchant Locations screen uses `useGetMethod` with the `merchant_list` endpoint key. After fetching, the client:
+
+1. Calculates the distance from the user's GPS coordinates to each merchant using the `useDistance` hook.
+2. Sorts the merchant array from nearest to furthest using `lodash/sortBy`.
+3. Applies a client-side name filter using `lodash/filter` when a search term is entered.
+
+```javascript Merchant.jsx
+const dat = map(data?.data, item => ({
+  ...item,
+  distance: calculateDistance(
+    location?.coords?.latitude,
+    location?.coords?.longitude,
+    item.latitude,
+    item.longitude,
+  ),
+}));
+
+const sortedData = sortBy(dat, 'distance');
+```
