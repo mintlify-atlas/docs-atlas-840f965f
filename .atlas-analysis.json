@@ -1,0 +1,113 @@
+{
+  "projectType": "saas",
+  "projectName": "DOSS User App",
+  "projectDescription": "A React Native mobile payment app that enables users to scan QR codes, make payments, manage their digital wallet, verify identity, and track transaction history.",
+  "theme": "almond",
+  "primaryColor": "#64dcfc",
+  "lightColor": "#448494",
+  "darkColor": "#24252d",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["introduction", "getting-started"]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "authentication/overview",
+              "authentication/registration",
+              "authentication/login",
+              "authentication/pin-management"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/dashboard",
+              "features/scan-and-pay",
+              "features/transaction-history",
+              "features/notifications",
+              "features/identity-verification",
+              "features/groups"
+            ]
+          },
+          {
+            "group": "Profile & Settings",
+            "pages": [
+              "profile/overview",
+              "profile/preferences",
+              "profile/account-security",
+              "profile/customer-support"
+            ]
+          },
+          {
+            "group": "Technical Reference",
+            "pages": [
+              "technical/architecture",
+              "technical/navigation",
+              "technical/state-management",
+              "technical/api-integration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/profile",
+              "api/payments",
+              "api/transactions",
+              "api/notifications",
+              "api/identity",
+              "api/groups"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "QR code scanning and payments",
+    "Digital wallet with balance tracking",
+    "Transaction history with date grouping",
+    "Identity verification with document upload",
+    "Push notifications via Firebase Cloud Messaging",
+    "PIN-based authentication and security",
+    "Group payments support",
+    "Merchant discovery and payment requests"
+  ],
+  "publicApiSurface": [
+    "POST /v2/email_send_otp",
+    "POST /v2/email_verify_otp",
+    "POST /v2/phone_send_otp",
+    "POST /v2/phone_verify_otp",
+    "POST /v2/set_pin",
+    "POST /v2/confirm_pin",
+    "GET /v2/profile",
+    "POST /v2/new-login",
+    "GET /v2/doss_dashboard",
+    "POST /v2/scan-link",
+    "POST /v2/confirm_payment_with_pin",
+    "PUT /v2/update_email",
+    "PUT /v2/update_name",
+    "PUT /v2/update_phone",
+    "GET /v2/transaction_history",
+    "GET /v2/doss_notification",
+    "GET /v2/doss_alert_notification",
+    "POST /v2/id_proof",
+    "POST /v2/update_image",
+    "POST /v2/payment-request-action",
+    "GET /v2/doss_groups",
+    "POST /v2/join_group",
+    "DELETE /v2/leave_group/"
+  ]
+}
